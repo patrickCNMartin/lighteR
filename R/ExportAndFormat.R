@@ -11,7 +11,7 @@
 
 
 
-match.column.Type <- function(df){
+.match.column.Type <- function(df){
     # Removing meta data
     localdf<-df[,12:ncol(df)]
 
@@ -26,7 +26,7 @@ match.column.Type <- function(df){
 
 
 
-nullConversion <- function(input){
+.nullConversion <- function(input){
    if(input=="NULL"){
      return(NULL)
    }else{
@@ -35,7 +35,7 @@ nullConversion <- function(input){
 }
 
 ### this was to remove unwated space but it seems like grep can't find the patern
-spaceRemoval<-function(id){
+.spaceRemoval<-function(id){
 
     d<-lapply(id,function(x){
            loc<-grep("",x,ignore.case=T)
@@ -45,7 +45,7 @@ spaceRemoval<-function(id){
     return(id)
 }
 
-IDtag<-function(x,tag){
+.IDtag<-function(x,tag){
      if(length(x)==length(tag)){
        names(x)<-tag
      } else if(length(x)<length(tag)){

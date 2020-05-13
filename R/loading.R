@@ -11,7 +11,7 @@
 
 
 ### Loading function
-ImageDataLoading <- function(file,colnamesExceptions=c("qP","NPQ")){
+.ImageDataLoading <- function(file,colnamesExceptions=c("qP","NPQ")){
     ## special load and split
 
     file<-read.csv(file, stringsAsFactors=F)
@@ -42,7 +42,16 @@ ImageDataLoading <- function(file,colnamesExceptions=c("qP","NPQ")){
     return(file)
 }
 
-ZoneDataLoading <- function(file, mapID=NULL,threshold=5){
+.ImageDataLoadingBatch <- function(directory,colnamesExceptions=c("qP","NPQ")){
+    dataLocal <- paste0(directory,dir(directory))
+
+    imageFiles<-grep("ImageData",dataLocal, value=T)
+    image<-lapply(imageFiles,ImageDataLoading,colnamesExceptions)
+    names(image)<-gsub(".csv","",imageFiles)
+    return(image)
+}
+
+.ZoneDataLoading <- function(file, mapID=NULL,threshold=5){
     ## load data
     data<-read.csv(file, header=F, skip=3,stringsAsFactors=F)
 
@@ -61,95 +70,123 @@ ZoneDataLoading <- function(file, mapID=NULL,threshold=5){
 
     if(!is.null(mapID)){
           mapID<-read.csv(mapID, header=F, stringsAsFactors=F)
-          data <- mapIDs(data,mapID,threshold)
+          data <- .mapIDs(data,mapID,threshold)
     }
 
     return(data)
 
 }
 
-batchLoading<-function(data,mapID=NULL,type=c("zone","image","all"),threshold=5){
-    ## this is a bit wonky
-    ## loading data from folder
-    dataLocal <- paste0(data,dir(data))
+.ZoneDataLoadingBatch <- function(directory,mapID, threshold =5 ){
+    dataLocal <- paste0(directory,dir(directory))
     mapIDLocal <- paste0(mapID, dir(mapID))
+    zoneFiles<-grep("ZoneData",dataLocal, value=T)
 
-    ## loading data files
-    if(type[1]=="all"){
+    ## reorganising maps if needed
+    if(!is.null(mapID)){
+        mapID<-lapply(zoneFiles,.matchMapToData,map=mapIDLocal,dataLoc=directory)
 
-         ## Finding Zone data
-         zoneFiles<-grep("ZoneData",dataLocal, value=T)
-
-         ## reorganising maps if needed
-         if(!is.null(mapID)){
-             mapID<-lapply(zoneFiles,matchMapToData,map=mapIDLocal,dataLoc=data)
-
-         } else{
-            mapID<-vector("list", length(data))
-         }
-
-         zone<-mapply(function(zoneFiles,mapID,threshold){
-                    mapID<-nullConversion(mapID)
-
-                    zoneData <-tryCatch(ZoneDataLoading(zoneFiles,mapID,threshold),
-                    error=function(cond){return("Plate Error - Check for salavaging \n")},
-                    warning=function(cond){return("Plate Error - Check for salavaging \n")})
-                    return(zoneData)},zoneFiles=zoneFiles,mapID=mapID,threshold=threshold,SIMPLIFY=F)
-
-         names(zone)<-gsub(".csv","",zoneFiles)
-
-
-        ## loading image files
-        ## using setwd just to avoid any issues with differences between operating systems
-        ## it's ugly but it should work
-
-        imageFiles<-grep("ImageData",dataLocal, value=T)
-        image<-lapply(imageFiles,ImageDataLoading)
-        names(image)<-gsub(".csv","",imageFiles)
-
-        localDat<-list("Image"=image,"zone"=zone)
-
-
-    } else if(type[1]=="zone"){
-      ## reorganising maps if needed
-      ## Finding Zone data
-
-      zoneFiles<-grep("ZoneData",dataLocal, value=T)
-
-      ## reorganising maps if needed
-      if(!is.null(mapID)){
-          mapID<-lapply(zoneFiles,matchMapToData,map=mapIDLocal,dataLoc=data)
-
-      } else{
-         ## keeping it is list so we can parse NULL elements to the next Functions
-         ## otherwise when using vectors ,R removes those elements
-         mapID<-vector("list", length(data))
-      }
-
-      zone<-mapply(function(zoneFiles,mapID,threshold){
-                 mapID<-nullConversion(mapID)
-                 print(zoneFiles)
-                 zoneData <-tryCatch(ZoneDataLoading(zoneFiles,mapID,threshold),
-                 error=function(cond){return("Plate Error - Check for salvaging \n")},
-                 warning=function(cond){return("Plate Error - Check for salvaging \n")})
-                 return(zoneData)},zoneFiles=zoneFiles,mapID=mapID,threshold=threshold,SIMPLIFY=F)
-
-      names(zone)<-gsub(".csv","",zoneFiles)
-
-      localDat<-list("zone"=zone)
-
-    } else if(type[1]=="image"){
-
-      imageFiles<-grep("ImageData",dataLocal, value=T)
-      image<-lapply(imageFiles,ImageDataLoading)
-      names(image)<-gsub(".csv","",imageFiles)
-      localDat<-list("image"=image)
-
-    }else{
-      stop("Unknown input data type")
+    } else{
+        mapID<-vector("list", length(directory))
     }
 
-    return(localDat)
+    zone<-mapply(function(zoneFiles,mapID,threshold){
+                mapID<-.nullConversion(mapID)
+
+                zoneData <-.ZoneDataLoading(zoneFiles,mapID,threshold)
+                                    #error=function(cond){
+                                     #     return("Plate Error - Check for salavaging \n")
+                                      #    },
+                                    #warning=function(cond){
+                                     #     return("Plate Error - Check for salavaging \n")
+                                      #    })
+                return(zoneData)},zoneFiles=zoneFiles,mapID=mapID,threshold=threshold,SIMPLIFY=F)
+
+  names(zone)<-gsub(".csv","",zoneFiles)
+  return(zone)
+
+}
+
+.rooting <-function(data,mapID=NULL,type=c("zone","image"),areaThreshold=5){
+    ## setting roots
+    roots <- new("roots")
+
+    ## pre map ID check
+    if(is.null(mapID)) mapID <-"NULL"
+
+    ## Laodind files
+    if(dir.exists(data) & dir.exists(mapID)){
+
+      if(length(type) == 2 &
+         sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
+         sum(grepl("image",type,ignore.case = TRUE))==1){
+           roots@Image <- .ImageDataLoadingBatch(directory = data)
+           roots@Zone <- .ZoneDataLoadingBatch(directory =data,mapID=mapID,
+                                               threshold =areaThreshold)
+        } else if(grepl("zone", type[1],ignore.case =TRUE)){
+           roots@Zone <-.ZoneDataLoadingBatch(directory =data,mapID=mapID,
+                                               threshold =areaThreshold)
+        } else if(grepl("image", type[1],ignore.case =TRUE)){
+           roots@Image <- .ImageDataLoadingBatch(directory = data)
+        } else{
+           stop("Unknown loading type - Select from : all , zone , image")
+        }
+    } else if(dir.exists(data) & !dir.exists(mapID)) {
+        mapID <- .nullConversion(mapID)
+        if(length(type) == 2 &
+           sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
+           sum(grepl("image",type,ignore.case = TRUE))==1){
+           roots@Image <- .ImageDataLoadingBatch(directory = data)
+           roots@Zone <- .ZoneDataLoadingBatch(directory =data,mapID=mapID,
+                                               threshold =areaThreshold)
+        } else if(grepl("zone", type[1],ignore.case =TRUE)){
+           roots@Zone <-.ZoneDataLoadingBatch(directory =data,mapID=mapID,
+                                               threshold =areaThreshold)
+        } else if(grepl("image", type[1],ignore.case =TRUE)){
+           roots@Image <- .ImageDataLoadingBatch(directory = data)
+        }else{
+           stop("Unknown loading type - Select from : all , zone , image")
+        }
+    } else if(file.exists(data) & file.exists(mapID)){
+
+      if(length(type) == 2 &
+         sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
+         sum(grepl("image",type,ignore.case = TRUE))==1){
+          roots@Image <- .ImageDataLoading(file = data)
+          roots@Zone <- .ZoneDataLoadingBatch(file =data,mapID=mapID,
+                                             threshold =areaThreshold)
+        } else if(grepl("zone", type[1],ignore.case =TRUE)){
+          roots@Zone <-.ZoneDataLoading(file =data,mapID=mapID,
+                                             threshold =areaThreshold)
+        } else if(grepl("image", type[1],ignore.case =TRUE)){
+          roots@Image <- .ImageDataLoading(file = data)
+        } else{
+          stop("Unknown loading type - Select from : all , zone , image")
+        }
+    } else if(file.exists(data) & !file.exists(mapID)){
+        mapID <- .nullConversion(mapID)
+        if(length(type) == 2 &
+           sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
+           sum(grepl("image",type,ignore.case = TRUE))==1){
+          roots@Image <- .ImageDataLoading(file = data)
+          roots@Zone <- .ZoneDataLoading(file =data,mapID=mapID,
+                                             threshold =areaThreshold)
+        } else if(grepl("zone", type[1],ignore.case =TRUE)){
+          roots@Zone <-.ZoneDataLoading(file =data,mapID=mapID,
+                                             threshold =areaThreshold)
+        } else if(grepl("image", type[1],ignore.case =TRUE)){
+          roots@Image <- .ImageDataLoading(file = data)
+        }else{
+          stop("Unknown file type - Select from : all , zone , image")
+        }
+    } else {
+        stop("File and/or mapID do not exist!")
+    }
+
+    ## this is a bit wonky
+    ## loading data from folder
+
+    return(roots)
 
 }
 
@@ -157,7 +194,7 @@ batchLoading<-function(data,mapID=NULL,type=c("zone","image","all"),threshold=5)
 
 #### new map ID function hopefully this one will work
 
-mapIDs <- function(data,mapID,threshold=5){
+.mapIDs <- function(data,mapID,threshold=5){
 
     mapID <-as.matrix(mapID)
     ## finding map bounds
@@ -177,7 +214,7 @@ mapIDs <- function(data,mapID,threshold=5){
 
     mapID<-mapID[boundsY,boundsX]
     locID <- grep("([0-9]+).*$",mapID)
-    data <- nonZeroIndex(data,threshold)
+    data <- .nonZeroIndex(data,threshold)
     data[,"Zone"]<- as.vector(t(mapID[locID]))
     return(data)
 
@@ -185,7 +222,7 @@ mapIDs <- function(data,mapID,threshold=5){
 
 
 
-matchMapToData<-function(data,map,dataLoc){
+.matchMapToData<-function(data,map,dataLoc){
      ## match would have been more elgant
      ## but match is only for exact patterns
      ## and there will be issues with OS differences

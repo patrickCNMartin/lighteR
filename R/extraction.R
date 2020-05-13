@@ -132,7 +132,7 @@
 ## forzone data
 ## you havent really done anything for all data
 
-extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
+.extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
 
     datasub <- nonZeroIndex(data,threshold)
 
@@ -155,7 +155,7 @@ extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
 
 ## extracting evey measure in batches for zone data
 
-batchExtractMeasure <- function(data,type=c("NPQ","XE","EF","OE"),threshold=5){
+.batchExtractMeasure <- function(data,type=c("NPQ","XE","EF","OE"),threshold=5){
 
     zoneOnly<-data$zone
     ID<-names(zoneOnly)
@@ -170,7 +170,7 @@ batchExtractMeasure <- function(data,type=c("NPQ","XE","EF","OE"),threshold=5){
     return(local)
 }
 
-extractByID <- function(data, splitby=c("plot","pedigree","line","stem"),tagID=c("plot","pedigree","line","stem")){
+.extractByID <- function(data, splitby=c("plot","pedigree","line","stem"),tagID=c("plot","pedigree","line","stem")){
 
   if(is(data)[1]=="data.frame"){
     IDs<- list("Zone"=as.character(data[,"Zone"]))
@@ -237,7 +237,7 @@ extractByID <- function(data, splitby=c("plot","pedigree","line","stem"),tagID=c
 
 ### batch extraction for ID
 
-batchExtractByID <-function(data,splitby=c("plot","pedigree","line","stem"),
+.batchExtractByID <-function(data,splitby=c("plot","pedigree","line","stem"),
                             tagID=c("plot","pedigree","line","stem"),combine=TRUE,norm=TRUE){
 
         ## step one check for plate errors in data and remove
@@ -452,7 +452,7 @@ batchExtractByID <-function(data,splitby=c("plot","pedigree","line","stem"),
 ## forzone data
 ## you havent really done anything for all data
 
-extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
+.extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
 
     datasub <- nonZeroIndex(data,threshold)
 

@@ -6,20 +6,13 @@
 ## Sourcing other functions
 ## Split to make it cleaner
 
-source("scripts/loading.R")
-source("scripts/models.R")
-source("scripts/filter.R")
-source("scripts/extraction.R")
-source("scripts/ExportAndFormat.R")
-source("scripts/parameter.R")
-
 
 
 
 # Misc functions
 
 
-singleElememntPos <- function(data){
+.singleElememntPos <- function(data){
      rows<- nrow(data)
      if(rows<=2){
         return(TRUE)
@@ -28,7 +21,7 @@ singleElememntPos <- function(data){
      }
 }
 
-nonZeroIndex <- function(data,threshold=5){
+.nonZeroIndex <- function(data,threshold=5){
      ## first let's remove artifacts
      area <- data[,2]
       area <- which(area >= threshold)
@@ -39,7 +32,7 @@ nonZeroIndex <- function(data,threshold=5){
 ## the is.true function is a didgy and hacky
 ## it only return true if what ever you pass is true otherwise just FALSE
 ## even if it is numeric, character or what ever
-is.true<-function(x){
+.is.true<-function(x){
     if(x==TRUE){
        return(TRUE)
     } else {
@@ -47,7 +40,7 @@ is.true<-function(x){
     }
 }
 
-is.false<-function(x){
+.is.false<-function(x){
   if(x==FALSE){
      return(TRUE)
   } else {
