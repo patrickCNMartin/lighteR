@@ -46,7 +46,7 @@
     dataLocal <- paste0(directory,dir(directory))
 
     imageFiles<-grep("ImageData",dataLocal, value=T)
-    image<-lapply(imageFiles,ImageDataLoading,colnamesExceptions)
+    image<-lapply(imageFiles,.ImageDataLoading,colnamesExceptions)
     names(image)<-gsub(".csv","",imageFiles)
     return(image)
 }
@@ -93,13 +93,12 @@
     zone<-mapply(function(zoneFiles,mapID,threshold){
                 mapID<-.nullConversion(mapID)
 
-                zoneData <-.ZoneDataLoading(zoneFiles,mapID,threshold)
-                                    #error=function(cond){
-                                     #     return("Plate Error - Check for salavaging \n")
-                                      #    },
-                                    #warning=function(cond){
-                                     #     return("Plate Error - Check for salavaging \n")
-                                      #    })
+                zoneData <-tryCatch(.ZoneDataLoading(zoneFiles,mapID,threshold),
+                                    error=function(cond){
+                                         #cat(paste("Plate Error",zoneFiles))
+                                         return(zoneFiles)
+                                          })
+
                 return(zoneData)},zoneFiles=zoneFiles,mapID=mapID,threshold=threshold,SIMPLIFY=F)
 
   names(zone)<-gsub(".csv","",zoneFiles)
@@ -153,7 +152,7 @@
          sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
          sum(grepl("image",type,ignore.case = TRUE))==1){
           roots@Image <- .ImageDataLoading(file = data)
-          roots@Zone <- .ZoneDataLoadingBatch(file =data,mapID=mapID,
+          roots@Zone <- .ZoneDataLoading(file =data,mapID=mapID,
                                              threshold =areaThreshold)
         } else if(grepl("zone", type[1],ignore.case =TRUE)){
           roots@Zone <-.ZoneDataLoading(file =data,mapID=mapID,
@@ -227,6 +226,7 @@
      ## but match is only for exact patterns
      ## and there will be issues with OS differences
      ## so good old school looping for now
+  #browser()
      tmp<-gsub(dataLoc,"",data)
      tmp<-sapply(strsplit(tmp,"_"),function(x){return(paste0(x[1],"_",x[2]))})
      mapMatch<-grep(tmp,map,value=T)

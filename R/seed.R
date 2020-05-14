@@ -6,41 +6,34 @@
 setClass("roots",slot =c(Image="list",Zone = "list"))
 
 
-chloroplast <- list("NPQ" = NULL,
-                    "XE" = NULL,
-                    "OE" = NULL,
-                    "EF" = NULL)
-class(chloroplast) <- "chloroplast"
+setClass("measures",slot = c (NPQ = "list",
+                    XE = "list",
+                    OE = "list",
+                    EF = "list"))
 
-leaves <- list("NPQ" = NULL,
-                    "XE" = NULL,
-                    "OE" = NULL,
-                    "EF" = NULL)
-class(leaves) <- "leaves"
 
-parameters <- list("NPQ" = NULL,
-                    "XE" = NULL,
-                    "OE" = NULL,
-                    "EF" = NULL)
-class(parameters) <- "parameters"
+setClass("origin",slot = c (NPQ = "list",
+                              XE = "list",
+                              OE = "list",
+                              EF = "list"))
+setClass("parameters",slot = c (NPQ = "list",
+                              XE = "list",
+                              OE = "list",
+                              EF = "list"))
+setClass("dropped",slot = c (NPQ = "list",
+                              XE = "list",
+                              OE = "list",
+                              EF = "list"))
+setClass("retain",slot = c (NPQ = "list",
+                              XE = "list",
+                              OE = "list",
+                              EF = "list"))
+setClass("models",slot = c (NPQ = "list",
+                              XE = "list",
+                              OE = "list",
+                              EF = "list"))
 
-models <- list("NPQ" = NULL,
-               "XE" = NULL,
-               "OE" = NULL,
-               "EF" = NULL)
-class(models) <- "models"
 
-retain <- list("NPQ" = NULL,
-               "XE" = NULL,
-               "OE" = NULL,
-               "EF" = NULL)
-class(retain) <- "retain"
-
-dropped <- list("NPQ" = NULL,
-               "XE" = NULL,
-               "OE" = NULL,
-               "EF" = NULL)
-class(dropped) <- "dropped"
 
 
 
@@ -49,13 +42,13 @@ class(dropped) <- "dropped"
 
 setClass("seed",
          slot = c(roots = "roots",
-                  chloroplast = "chloroplast",
-                  leaves = "leaves",
+                  measures = "measures",
+                  origin = "origin",
                   parameters = "parameters",
                   models = "models",
                   retain = "retain",
                   dropped = "dropped",
-                  meta.data = "data.frame",
+                  meta.data = "list",
                   time = "vector")
          )
 
@@ -67,9 +60,16 @@ sowSeed <- function(files,mapID = NULL,type = c("zone", "image"), areaThreshold 
 
     ## Adding roots
 
-    seed@roots <- .rooting(data = files,
-                           mapID = mapID,
-                           type = type,
-                           areaThreshold =areaThreshold)
+    roots  <- .rooting(data = files,
+                       mapID = mapID,
+                       type = type,
+                       areaThreshold =areaThreshold)
+
+
+    plateError <- .plateErrors(roots)
+
+    ## building seed object
+    seed@roots <- roots
+
     return(seed)
 }
