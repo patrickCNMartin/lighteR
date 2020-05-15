@@ -128,7 +128,7 @@
         } else if(grepl("image", type[1],ignore.case =TRUE)){
            roots@Image <- .ImageDataLoadingBatch(directory = data)
         } else{
-           stop("Unknown loading type - Select from : all , zone , image")
+           stop("Unknown loading type - Select from : zone or image")
         }
     } else if(dir.exists(data) & !dir.exists(mapID)) {
         mapID <- .nullConversion(mapID)
@@ -144,7 +144,7 @@
         } else if(grepl("image", type[1],ignore.case =TRUE)){
            roots@Image <- .ImageDataLoadingBatch(directory = data)
         }else{
-           stop("Unknown loading type - Select from : all , zone , image")
+           stop("Unknown loading type - Select from :  zone or image")
         }
     } else if(file.exists(data) & file.exists(mapID)){
 
@@ -160,7 +160,7 @@
         } else if(grepl("image", type[1],ignore.case =TRUE)){
           roots@Image <- .ImageDataLoading(file = data)
         } else{
-          stop("Unknown loading type - Select from : all , zone , image")
+          stop("Unknown loading type - Select from :  zone or image")
         }
     } else if(file.exists(data) & !file.exists(mapID)){
         mapID <- .nullConversion(mapID)
@@ -176,7 +176,7 @@
         } else if(grepl("image", type[1],ignore.case =TRUE)){
           roots@Image <- .ImageDataLoading(file = data)
         }else{
-          stop("Unknown file type - Select from : all , zone , image")
+          stop("Unknown file type - Select from :  zone or image")
         }
     } else {
         stop("File and/or mapID do not exist!")

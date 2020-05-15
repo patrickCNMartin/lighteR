@@ -50,19 +50,44 @@
     ZoneError <- length(roots@Zone) != 0
     ImageError <- length(roots@Image) != 0
 
-    if(ZoneError){
+    if(ZoneError & ImageError){
+        Zone <- sapply(roots@Zone,is.character)
+        Image <- sapply(roots@Image,is.character)
+        if(sum(Zone)!=0| sum(Image)!=0){
+            warning("Plate Error while Loading - check seed meta data for failed plates")
 
+            plateError <- list("ZoneError" = names(roots@Zone[Zone]),
+                               "ImageError" = names(roots@Image[Image]))
+            seed.meta.data <- plateError
+        } else {
+            seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
+        }
+    } else if(ZoneError & !ImageError){
+        Zone <- sapply(roots@Zone,is.character)
+        if(sum(Zone)!=0){
+            warning("Plate Error while Loading - check seed meta data for failed plates")
+            plateError <- list("ZoneError" = names(roots@Zone[Zone]),
+                               "ImageError" = "No Image data Loaded")
+            seed.meta.data <- plateError
+        } else {
+            seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
+        }
+    } else if(!ZoneError & ImageError){
+        Image <- sapply(roots@Image,is.character)
+        if(sum(ImageError)!=0){
+            warning("Plate Error while Loading - check seed meta data for failed plates")
+            plateError <- list("ZoneError" = "No Zone data Loaded",
+                               "ImageError" = names(roots@Image[ImageError]))
+            seed.meta.data <- plateError
+        } else {
+            seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
+        }
+    } else {
+        stop("Ooops somthing went wrong - Empty roots - No input data")
     }
+
+    return(seed.meta.data)
 }
-ZoneError <- sapply(roots@Zone,is.character)
-ImageError <- sapply(roots@Image,is.character)
-browser()
-if(sum(ZoneError)!=0| sum(ImageError)!=0){
-    warning("Plate Error while Loading - check seed meta data for failed plates")
-    plateError <- list("ZoneError" = roots@Zone[ZoneError],
-                       "ImageError" = roots@Image[ImageError])
-    seed@meta.data <- plateError
-} else {
-    seed@meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
-}
+
+
 

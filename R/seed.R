@@ -66,10 +66,10 @@ sowSeed <- function(files,mapID = NULL,type = c("zone", "image"), areaThreshold 
                        areaThreshold =areaThreshold)
 
 
-    plateError <- .plateErrors(roots)
+    plateError <- .plateError(roots)
 
     ## building seed object
     seed@roots <- roots
-
+    seed@meta.data <- plateError
     return(seed)
 }
