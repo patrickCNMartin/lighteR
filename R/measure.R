@@ -10,20 +10,57 @@
 ################################################################################
 
 lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
+    ## First lets check if the measure type are correct
+    if(any(!measures %in% c("NPQ","XE","EF","OE"))){
+        stop("Unknown measure type - Availbale measures : NPQ, XE, EF, OE")
+    }
+    ## Extracting Measures
     roots <- seed@roots@Zone
     if(length(roots)==0){
         stop("No Zone data loaded within roots")
-    } else if(length(roots) == 1){
-        measures <- .ExtractMeasure(roots, type = measures)
+    } else if(length(roots) ==1){
+        light <- .extractMeasure(roots,names(roots), type = measures)
     } else {
-        measures <- .batchExtractMeasure(roots, type = measures)
+        light <- .batchExtractMeasure(roots, type = measures)
     }
+    ## extract measure type from each file
+    lightRes <- vector("list", length(measures))
+    names(lightRes) <- measures
+    for(m in seq_along(lightRes)){
+        tmp <- lapply(light,"[[",measures[m])
+        lightRes[[m]] <- do.call("rbind", tmp)
+    }
+
+    ### Assinging measures
+    types <- c("NPQ","XE","EF","OE")
+    localType <- lightRes[names(lightRes) %in% types]
+    measureLocal <- match(types,names(localType))
+    localEnvir <- environment()
+
+    mapply(function(measureLocal,types,localEnvir,localType){
+        if(is.na(measureLocal)){
+            assign(types,list(),envir=localEnvir)
+        }else{
+            assign(types,localType[[measureLocal]],envir=localEnvir)
+        }},measureLocal,types,MoreArgs=list(localEnvir,localType))
+
+
+    lightResp <- new("measures",
+                     NPQ = NPQ,
+                     XE =XE,
+                     EF =EF,
+                     OE = OE)
+
+    seed@measures <- lightResp
+    return(seed)
 }
 
 
 
-.extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
-
+.extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5,single=TRUE){
+    if(single){
+        data <- data[[1]]
+    }
     datasub <- .nonZeroIndex(data,threshold)
 
 
@@ -33,13 +70,15 @@ lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
 
     # ID remap
     Zone <- as.character(datasub[,"Zone"])
-    ID <-rep(ID, length(Zone))
+    diskID <-rep(ID, length(Zone))
     for(i in seq_along(datasubSplit)){
         datasubSplit[[i]]<-datasub[,grep(type[i],colnames(datasub))]
-        datasubSplit[[i]]<-cbind(ID,Zone, datasubSplit[[i]])
+        datasubSplit[[i]]<-cbind(diskID,Zone, datasubSplit[[i]])
     }
 
-    return(datasubSplit)
+    measure <- list(datasubSplit)
+    names(measure) <- ID
+    return(measure)
 
 }
 
@@ -50,11 +89,10 @@ lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
 
     ID<-names(data)
     local<-mapply(function(zoneData,ID,type=type){
-        if(is(zoneData)[1]=="character"){
-            return("Plate Error - Check for salvaging")
-        } else{
-            return(extractMeasure(zoneData,ID, type=type,threshold=threshold))
-        }
+
+            return(.extractMeasure(zoneData,ID, type=type,
+                                   threshold=threshold,single = FALSE))
+
     },data,ID,MoreArgs=list(type=type))
 
     return(local)

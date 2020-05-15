@@ -6,10 +6,10 @@
 setClass("roots",slot =c(Image="list",Zone = "list"))
 
 
-setClass("measures",slot = c (NPQ = "list",
-                    XE = "list",
-                    OE = "list",
-                    EF = "list"))
+setClass("measures",slot = c (NPQ = "data.frame",
+                    XE = "data.frame",
+                    OE = "data.frame",
+                    EF = "data.frame"))
 
 
 setClass("origin",slot = c (NPQ = "list",
@@ -69,7 +69,7 @@ sowSeed <- function(files,mapID = NULL,type = c("zone", "image"), areaThreshold 
     plateError <- .plateError(roots)
 
     ## building seed object
-    seed@roots <- roots
-    seed@meta.data <- plateError
+    seed@roots <- plateError$roots
+    seed@meta.data <- plateError$seed.meta.data
     return(seed)
 }

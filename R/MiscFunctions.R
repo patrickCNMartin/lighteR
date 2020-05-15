@@ -55,10 +55,12 @@
         Image <- sapply(roots@Image,is.character)
         if(sum(Zone)!=0| sum(Image)!=0){
             warning("Plate Error while Loading - check seed meta data for failed plates")
-
             plateError <- list("ZoneError" = names(roots@Zone[Zone]),
                                "ImageError" = names(roots@Image[Image]))
             seed.meta.data <- plateError
+
+            roots@Zone <- roots@Zone[!Zone & !Image]
+            roots@Image <- roots@Image[!Zone & !Image]
         } else {
             seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
         }
@@ -69,6 +71,7 @@
             plateError <- list("ZoneError" = names(roots@Zone[Zone]),
                                "ImageError" = "No Image data Loaded")
             seed.meta.data <- plateError
+            roots@Zone <- roots@Zone[!Zone]
         } else {
             seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
         }
@@ -79,6 +82,7 @@
             plateError <- list("ZoneError" = "No Zone data Loaded",
                                "ImageError" = names(roots@Image[ImageError]))
             seed.meta.data <- plateError
+            roots@Image <- roots@Image[!Image]
         } else {
             seed.meta.data <- list("Plate Error" = "All Plates Loaded Succesfully")
         }
@@ -86,8 +90,14 @@
         stop("Ooops somthing went wrong - Empty roots - No input data")
     }
 
-    return(seed.meta.data)
+    return(list("seed.meta.data" = seed.meta.data,"roots"=roots))
 }
 
-
-
+slotApply <- function(x,FUN,...){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+        result[[i]] <- FUN(slot(x,i),...)
+    }
+    result
+}
