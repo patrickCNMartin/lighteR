@@ -151,14 +151,23 @@
       if(length(type) == 2 &
          sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
          sum(grepl("image",type,ignore.case = TRUE))==1){
-          roots@Image <- .ImageDataLoading(file = data)
-          roots@Zone <- .ZoneDataLoading(file =data,mapID=mapID,
-                                             threshold =areaThreshold)
+          image <- list(.ImageDataLoading(file = data))
+          names(image) <- data
+          roots@Image <-image
+          zone <- list(.ZoneDataLoading(file =data,mapID=mapID,
+                                        threshold =areaThreshold))
+          names(zone) <- data
+          roots@Zone <- zone
         } else if(grepl("zone", type[1],ignore.case =TRUE)){
-          roots@Zone <-.ZoneDataLoading(file =data,mapID=mapID,
-                                             threshold =areaThreshold)
+
+          zone <- list(.ZoneDataLoading(file =data,mapID=mapID,
+                                        threshold =areaThreshold))
+          names(zone) <- data
+          roots@Zone <- zone
         } else if(grepl("image", type[1],ignore.case =TRUE)){
-          roots@Image <- .ImageDataLoading(file = data)
+          image <- list(.ImageDataLoading(file = data))
+          names(image) <- data
+          roots@Image <-image
         } else{
           stop("Unknown loading type - Select from :  zone or image")
         }
@@ -167,14 +176,22 @@
         if(length(type) == 2 &
            sum(grepl("zone",type,ignore.case=TRUE)) ==1 &
            sum(grepl("image",type,ignore.case = TRUE))==1){
-          roots@Image <- .ImageDataLoading(file = data)
-          roots@Zone <- .ZoneDataLoading(file =data,mapID=mapID,
-                                             threshold =areaThreshold)
+          image <- list(.ImageDataLoading(file = data))
+          names(image) <- data
+          roots@Image <-image
+          zone <- list(.ZoneDataLoading(file =data,mapID=mapID,
+                                        threshold =areaThreshold))
+          names(zone) <- data
+          roots@Zone <- zone
         } else if(grepl("zone", type[1],ignore.case =TRUE)){
-          roots@Zone <-.ZoneDataLoading(file =data,mapID=mapID,
-                                             threshold =areaThreshold)
+          zone <- list(.ZoneDataLoading(file =data,mapID=mapID,
+                                        threshold =areaThreshold))
+          names(zone) <- data
+          roots@Zone <- zone
         } else if(grepl("image", type[1],ignore.case =TRUE)){
-          roots@Image <- .ImageDataLoading(file = data)
+          image <- list(.ImageDataLoading(file = data))
+          names(image) <- data
+          roots@Image <-image
         }else{
           stop("Unknown file type - Select from :  zone or image")
         }

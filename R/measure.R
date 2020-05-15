@@ -9,9 +9,22 @@
 ################################################################################
 ################################################################################
 
+lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
+    roots <- seed@roots@Zone
+    if(length(roots)==0){
+        stop("No Zone data loaded within roots")
+    } else if(length(roots) == 1){
+        measures <- .ExtractMeasure(roots, type = measures)
+    } else {
+        measures <- .batchExtractMeasure(roots, type = measures)
+    }
+}
+
+
+
 .extractMeasure <- function(data,ID,type=c("NPQ","XE","EF","OE"),threshold=5){
 
-    datasub <- nonZeroIndex(data,threshold)
+    datasub <- .nonZeroIndex(data,threshold)
 
 
     ## lets custom split this
@@ -25,7 +38,7 @@
         datasubSplit[[i]]<-datasub[,grep(type[i],colnames(datasub))]
         datasubSplit[[i]]<-cbind(ID,Zone, datasubSplit[[i]])
     }
-    class(datasubSplit)<-"byMeasure"
+
     return(datasubSplit)
 
 }
@@ -34,15 +47,15 @@
 
 .batchExtractMeasure <- function(data,type=c("NPQ","XE","EF","OE"),threshold=5){
 
-    zoneOnly<-data$zone
-    ID<-names(zoneOnly)
+
+    ID<-names(data)
     local<-mapply(function(zoneData,ID,type=type){
         if(is(zoneData)[1]=="character"){
             return("Plate Error - Check for salvaging")
         } else{
             return(extractMeasure(zoneData,ID, type=type,threshold=threshold))
         }
-    },zoneOnly,ID,MoreArgs=list(type=type))
-    class(local)<-"byMeasure"
+    },data,ID,MoreArgs=list(type=type))
+
     return(local)
 }
