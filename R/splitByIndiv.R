@@ -46,7 +46,7 @@
 
 
 
-getPlants <- function(seed,splitby=c("plot","pedigree","line","stem"),
+getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
                      tagID=c("plot","pedigree","line","stem")){
 
     origin <- new("origin")

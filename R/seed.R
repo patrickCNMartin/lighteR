@@ -16,10 +16,10 @@ setClass("origin",slot = c (NPQ = "list",
                               XE = "list",
                               OE = "list",
                               EF = "list"))
-setClass("parameters",slot = c (NPQ = "list",
-                              XE = "list",
-                              OE = "list",
-                              EF = "list"))
+setClass("traits",slot = c (NPQ = "data.frame",
+                              XE = "data.frame",
+                              OE = "data.frame",
+                              EF = "data.frame"))
 setClass("dropped",slot = c (NPQ = "data.frame",
                               XE = "data.frame",
                               OE = "data.frame",
@@ -33,8 +33,10 @@ setClass("models",slot = c (NPQ = "list",
                               OE = "list",
                               EF = "list"))
 
-setClass("time",slot = c (time ="vector",
-                          timePoints = "vector"))
+setClass("meta.param",slot = c (time ="vector",
+                          timePoints = "vector",
+                          nlsrStart = "list"),
+                    prototype = prototype(nlsrStart = list(a=10, b=7.5, c=5)))
 
 setClass("originType",slot = c(origin = "vector"))
 
@@ -50,12 +52,12 @@ setClass("seed",
          slot = c(roots = "roots",
                   measures = "measures",
                   origin = "origin",
-                  parameters = "parameters",
+                  traits = "traits",
                   models = "models",
                   retain = "retain",
                   dropped = "dropped",
                   meta.data = "list",
-                  time = "time",
+                  meta.param = "meta.param",
                   originType = "vector")
          )
 

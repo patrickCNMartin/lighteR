@@ -31,7 +31,8 @@ setMethod("show",
                 cat(paste(measures["OE"], "sample(s) for OE \n"))
                 cat(paste(measures["EF"], "sample(s) for EF \n"))
               }
-              origin <- slotApply(object@origin, function(origin){lapply(origin,length)})
+              #origin <- slotApply(object@origin, function(origin){lapply(origin,length)})
+              origin <- slotApply(object@origin, length)
 
               if(sum(unlist(origin))>=1){
                   cat("@origins \n")
@@ -41,10 +42,24 @@ setMethod("show",
                   cat(paste(origin[["EF"]], "sample Origin(s) for EF \n"))
               }
 
+              traits <- slotApply(object@traits, nrow)
+
+              if(sum(unlist(traits))>=1){
+                  cat("@traits \n")
+                  cat(paste("Traits extracted from",traits[["NPQ"]], "sample(s) in NPQ \n"))
+                  cat(paste("Traits extracted from",traits[["XE"]], "sample(s) in XE \n"))
+                  cat(paste("Traits extracted from",traits[["OE"]], "sample(s) in OE \n"))
+                  cat(paste("Traits extracted from",traits[["EF"]], "sample(s) in EF \n"))
+              }
+             ### meta data info
               if(length(grep("Zone",names(object@meta.data))) ==1 |
                  length(grepl("Image",names(object@meta.data)))==1){
                   cat("@meta.data \n")
-                  cat("Plate Errors stored in meta.data")
+                  cat("Plate Errors stored in meta.data \n")
+              }
+              if(any(grepl("dropped",names(object@meta.data)))){
+                  cat(paste(object@meta.data$dropped["dropped"],"filtered sample(s) \n"))
+                  cat(paste(object@meta.data$dropped["retain"],"retained sample(s) \n"))
               }
 
 

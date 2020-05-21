@@ -9,7 +9,7 @@
 ################################################################################
 ################################################################################
 
-lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local","global","none")){
+getMeasure <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local","global","none")){
     ## making a few checks
     if(any(!norm %in% c("local","global","none"))){
         stop("Unknown norm type - Availbale normalisation : local, global, none")

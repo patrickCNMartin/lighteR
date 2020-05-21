@@ -61,6 +61,19 @@
 }
 
 
+.rmsq<-function(x,y){
+    ## might need to add some checks in here
+
+    x<-as.vector(as.matrix(x))
+    y<-as.vector(as.matrix(y))
+    return(cor(x,y,method="spearman")^2)
+}
+.intMSE<-function(gp,chip){
+    mse <- sum((1/length(gp))*(gp-chip)^2)
+    return(mse)
+}
+
+
 .modelThresholdSelection<-function(model,residualThreshold=5,time,modelType){
 
       high<-model$High
@@ -144,46 +157,47 @@
 }
 
 ## returns index of runs to drop or to retain
-selectPlants <- function(plants,measure=c("NPQ","XE","EF","OE"),method=c("MSE",0.005)){
+selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE",0.005)){
 
     ## first lets get time
     ## need to add a check here
-    if(length(plants@time@timePoints)>0){
-        time <- plants@time@timePoints
+    if(length(seed@meta.param@timePoints)>0){
+        time <- seed@meta.param@timePoints
     } else {
-        warning("No Time Points have been set - using default 40 - 80")
+        message("No Time Points have been set - using default 40 - 80")
         time <- c(40,80)
     }
 
 
     ## next check what type of
     ## check we will be doing
-    models <- sum(unlist(slotApply(plants@models,length))) == 0
+    models <- sum(unlist(slotApply(seed@models,length))) == 0
     if(models){
-        template <- vector("list", length(slotNames(plants@measures)))
-        names(template)<- slotNames(plants@measures)
+        template <- vector("list", length(slotNames(seed@measures)))
+        names(template)<- slotNames(seed@measures)
         for(i in seq_along(measure)){
-            template[[measure[i]]] <- .dataConsitency(slot(plants@measures,measure[i]),measure[i],time)
+            template[[measure[i]]] <- .dataConsitency(slot(seed@measures,measure[i]),measure[i],time)
         }
         ## Filtering over measures
         template <- !apply(do.call("cbind",template),1,sum) < length(measure)
 
-        retain <- slotSubset(plants@measures,1,template)
-        dropped <- slotSubset(plants@measures,1,!template)
+        retain <- slotSubset(seed@measures,1,template)
+        dropped <- slotSubset(seed@measures,1,!template)
 
-        plants@retain <- slotAssign(plants@retain,retain)
-        plants@dropped <- slotAssign(plants@dropped,dropped)
+        seed@retain <- slotAssign(seed@retain,retain)
+        seed@dropped <- slotAssign(seed@dropped,dropped)
+        seed@meta.data$dropped <- c("retain"=sum(template),"dropped"=sum(!template))
         if(sum(sapply(dropped, nrow))>0 &
-           sum(unlist(slotApply(plants@origin, function(origin){lapply(origin,length)})))>1){
+           sum(unlist(slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
             message("Re-generating sample Origin after filtering")
-            plants <- getPlants(plants,splitby = plants@originType)
+            seed <- getPlants(seed,splitby = seed@originType)
         }
 
     } else {
 message("blabla")
     }
 
-    return(plants)
+    return(seed)
 }
 
 

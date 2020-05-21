@@ -49,54 +49,13 @@
      if(length(x)==length(tag)){
        names(x)<-tag
      } else if(length(x)<length(tag)){
-       message("ID does not follow template \n")
-       message(c(paste(x,collapse=" "),"\n"))
+       miss <- c(paste(x,collapse=" "))
+       warning(paste("MAP ID ",miss, "does not follow template \n"),call. = FALSE)
+
        x<-c(x,rep("missing",length(tag)-length(x)))
        names(x)<-tag
      }
      return(x)
-}
-
-
-.formatConversion <- function(dat, type=c("NPQ","XE","EF","OE"),individual=TRUE){
-
-     ## the is.true function is a didgy and hacky
-     ## it only return true if what ever you pass is true otherwise just
-     ## FALSE . even if it is numeric, character or what ever
-     if(is.false(individual)){
-
-        df<- melt(dat,id.vars=colnames(dat)[1:5])
-     # clean this shit up
-        df$variable <- type[1]
-        df<-data.frame(df, time=rep(seq_len(ncol(dat[,6:ncol(dat)])),each=nrow(dat)))
-
-     } else if(is.true(individual)){
-
-        df<- vector("list", nrow(dat))
-        for(i in seq_along(df)){
-          tmp<- melt(dat[i,],id.vars=colnames(dat)[1:5])
-        # clean this shit up
-          tmp$variable <- type[1]
-          tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[i,6:ncol(dat)])),each=nrow(dat[i,])))
-          df[[i]]<-tmp
-        }
-
-
-      } else if(individual=="median"){
-
-        df<- vector("list", nrow(dat))
-        for(i in seq_along(df)){
-          tmp<- melt(dat[i,],id.vars=colnames(dat)[1:5])
-        # clean this shit up
-          tmp$variable <- type[1]
-          tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[i,6:ncol(dat)])),each=nrow(dat[i,])))
-          df[[i]]<-tmp
-        }
-         if(length(df)==0)browser()
-         df<-.setMedian(df)
-
-      }
-     return(df)
 }
 
 

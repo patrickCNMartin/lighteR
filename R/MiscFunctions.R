@@ -102,6 +102,15 @@ slotApply <- function(x,FUN,...){
     result
 }
 
+slotExtractParam <- function(x,FUN,time){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+        result[[i]] <- FUN(slot(x,i),time,i)
+    }
+    result
+}
+
 slotAssign <- function(x,y){
     cl <- class(x)
 
@@ -133,7 +142,115 @@ slotSubset <- function(x,dim =1,template){
 
 setTimePoints <- function(seed,timePoints){
     #time <- new("time")
-    seed@time@timePoints <- timePoints
+    seed@meta.param@timePoints <- timePoints
 
     return(seed)
+}
+
+## set Starting gumbel
+setTimePoints <- function(seed,start){
+    #time <- new("time")
+    seed@meta.param@nslrStart <- start
+
+    return(seed)
+}
+
+.splitDfs <- function(ranges,cores){
+
+    if(cores>1 & cores < nrow(ranges)){
+        SplitRanges <- floor(seq(1,nrow(ranges),length.out=cores+1))
+        rangeSet<-vector("list",(cores))
+        start <- SplitRanges[1:(nrow(SplitRanges)-1),]
+        end <- rbind(SplitRanges[2:(nrow(SplitRanges)-1),]-1,SplitRanges[nrow(SplitRanges),])
+
+        for(i in seq_len(cores)){
+            rangeSet[[i]]<-ranges[start[i]:end[i],]
+        }
+
+    } else if(cores>1 & cores==nrow(ranges)) {
+        idx<-seq_len(nrow(ranges))
+        rangeSet<-vector("list",cores)
+        for(i in seq_len(cores)){
+            rangeSet[[i]]<-ranges[idx[i],]
+        }
+    } else {
+        rangeSet <- list(ranges)
+    }
+    return(rangeSet)
+}
+
+
+
+.formatConversion <- function(dat, type=c("NPQ","XE","EF","OE"),fit.to="plant"){
+
+
+    if(fit.to[1] == "plant"){
+
+        if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
+            df<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
+            df$variable <- type[1]
+            df<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
+                                        each=nrow(dat)))
+        } else {
+
+            df<- melt(dat,id.vars= c("diskID","Zone"))
+            df$variable <- type[1]
+            df<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
+                                        each=nrow(dat)))
+        }
+
+        # clean this shit up
+
+
+    } else if(fit.to[1] == "allPlants"){
+
+        df<- vector("list", nrow(dat))
+        for(i in seq_along(df)){
+            if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
+                tmp<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
+                tmp$variable <- type[1]
+                tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
+                                            each=nrow(dat)))
+            } else {
+
+                tmp<- melt(dat,id.vars= c("diskID","Zone"))
+                tmp$variable <- type[1]
+                tmp<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
+                                            each=nrow(dat)))
+            }
+
+            df[[i]]<-tmp
+        }
+
+
+    } else if(fit.to[1]=="medianPlant"){
+
+        df<- vector("list", nrow(dat))
+        for(i in seq_along(df)){
+            if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
+                tmp<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
+                tmp$variable <- type[1]
+                tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
+                                              each=nrow(dat)))
+            } else {
+
+                tmp<- melt(dat,id.vars= c("diskID","Zone"))
+                tmp$variable <- type[1]
+                tmp<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
+                                             each=nrow(dat)))
+            }
+
+            df[[i]]<-tmp
+        }
+        if(length(df)==0)browser()
+        df<-.setMedian(df)
+
+    }
+    return(df)
+}
+
+
+.quickSelect<- function(dip,zone){
+    dip <- dip[which(dip$Zone %in% zone),"OverCompTime"]
+    return(dip)
 }
