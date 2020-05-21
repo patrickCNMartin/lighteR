@@ -190,7 +190,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE",0.0
         if(sum(sapply(dropped, nrow))>0 &
            sum(unlist(slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
             message("Re-generating sample Origin after filtering")
-            seed <- getPlants(seed,splitby = seed@originType)
+            seed <- getOrigin(seed,splitby = seed@originType)
         }
 
     } else {

@@ -251,6 +251,18 @@ setTimePoints <- function(seed,start){
 
 
 .quickSelect<- function(dip,zone){
-    dip <- dip[which(dip$Zone %in% zone),"OverCompTime"]
+    tag <- apply(dip[,c("diskID","Zone")],1,paste, collapse="")
+
+    ## Dirty stuff
+    tag <- gsub(" ","", tag)
+    tag <- gsub("missing","", tag)
+    ## Dirty zone
+    zone <-gsub(" ","", zone)
+    zone <- gsub("missing","", zone)
+    ## matching
+
+    mat <- match(zone,tag)
+
+    dip <- dip[mat,"OverCompTime"]
     return(dip)
 }

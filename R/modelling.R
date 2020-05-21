@@ -133,7 +133,30 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     #####################################################################
     #####################################################################
     ## Done
-    return(models)
+    #browser()
+    ### Assinging measures
+    types <- c("NPQ","XE","EF","OE")
+    localType <- models[names(models) %in% types]
+    modelsLocal <- match(types,names(localType))
+    localEnvir <- environment()
+
+    mapply(function(measureLocal,types,localEnvir,localType){
+        if(is.na(measureLocal)){
+            assign(types,list(),envir=localEnvir)
+        }else{
+            assign(types,localType[[measureLocal]],envir=localEnvir)
+        }},modelsLocal,types,MoreArgs=list(localEnvir,localType))
+
+
+    mods <- new("models",
+                     NPQ = NPQ,
+                     XE =XE,
+                     EF =EF,
+                     OE = OE)
+
+
+    seed@models <- mods
+    return(seed)
 
 
 
@@ -397,15 +420,18 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
 
     dip <- seed@traits@NPQ
-    zone <- measure[,colnames(measure) %in% c("plot","pedigree","line","stem")]
-    zone <- apply(zone,1,paste,collapse=" ")
+    zone <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+    zone <- apply(zone,1,paste,collapse="")
+
     dip <- .quickSelect(dip,zone)
+
+    if(length(dip) != nrow(measure)) browser()
     timeLoc <- data.frame("startHighLight" = rep(1,nrow(measure)),
                       "endHighLight" = rep(time[1],nrow(measure)),
                       "startLowLight" = rep(time[1]+1, nrow(measure)),
                       "OverCompTime" = time[1] + dip,
                       "endLowLight" = rep(time[2],nrow(measure))
-    )
+                      )
 
 
     models <- .applyTripleModelFit(chunk=measure,timeSplit=timeLoc,
