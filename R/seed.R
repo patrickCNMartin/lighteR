@@ -20,18 +20,24 @@ setClass("parameters",slot = c (NPQ = "list",
                               XE = "list",
                               OE = "list",
                               EF = "list"))
-setClass("dropped",slot = c (NPQ = "list",
-                              XE = "list",
-                              OE = "list",
-                              EF = "list"))
-setClass("retain",slot = c (NPQ = "list",
-                              XE = "list",
-                              OE = "list",
-                              EF = "list"))
+setClass("dropped",slot = c (NPQ = "data.frame",
+                              XE = "data.frame",
+                              OE = "data.frame",
+                              EF = "data.frame"))
+setClass("retain",slot = c (NPQ = "data.frame",
+                              XE = "data.frame",
+                              OE = "data.frame",
+                              EF = "data.frame"))
 setClass("models",slot = c (NPQ = "list",
                               XE = "list",
                               OE = "list",
                               EF = "list"))
+
+setClass("time",slot = c (time ="vector",
+                          timePoints = "vector"))
+
+setClass("originType",slot = c(origin = "vector"))
+
 
 
 
@@ -49,7 +55,8 @@ setClass("seed",
                   retain = "retain",
                   dropped = "dropped",
                   meta.data = "list",
-                  time = "vector")
+                  time = "time",
+                  originType = "vector")
          )
 
 

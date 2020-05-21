@@ -101,3 +101,39 @@ slotApply <- function(x,FUN,...){
     }
     result
 }
+
+slotAssign <- function(x,y){
+    cl <- class(x)
+
+    for(i in slotNames(cl)){
+
+        slot(x,i)<-y[[i]]
+    }
+    return(x)
+}
+
+slotSubset <- function(x,dim =1,template){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+        if(dim ==1){
+            result[[i]] <- slot(x,i)[template,]
+        } else if(dim ==2){
+            result[[i]] <- slot(x,i)[,template]
+        } else {
+            stop("Error in number of dimensions")
+        }
+
+    }
+    result
+}
+
+
+## setting light time points
+
+setTimePoints <- function(seed,timePoints){
+    #time <- new("time")
+    seed@time@timePoints <- timePoints
+
+    return(seed)
+}

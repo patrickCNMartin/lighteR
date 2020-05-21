@@ -13,25 +13,51 @@
 .dataConsitency<-function(x,dataType=c("NPQ","XE","EF","OE"),time=c(40,80)){
 	## clean
 
-        x<-x[which(!names(x)%in%c("ID","plot","pedigree","line","stem"))]
-        x<-as.numeric(x)
-        # highlight only
-        x<-x[seq(1,time[1])]
+    x<-x[which(!names(x)%in%c("diskID","Zone"))]
+    x<-as.matrix(x)
+    rownames(x) <-NULL
+    colnames(x) <- NULL
+        # extracting basic param
+        # NOTE this can be changed to add more light consistency measures
 
-	      minX<-x[1]
-        ## this is maybe a bit harsh
-	## this depends on what has been done experimentally
-        #minxnext <-x[2]
-        maxX<-x[length(x)]
-	if(dataType[1]!="XE"){
-        	if(minX>maxX ){
-             		return(FALSE)
-		} else{
-	     		return(TRUE)
-		}
-	} else{
-		return(TRUE)
-	}
+
+    boundaries <- apply(x,1,function(dat,time){
+                        tmp <- vector("list",length(time))
+                        names(tmp) <- as.character(time)
+                        # adding first point
+                        time <- c(1,time)
+
+                        for(i in seq(1,l=length(time)-1)){
+                             tmp[[i]] <- c(dat[time[i]],
+                                           dat[time[i+1]])
+                        }
+                        return(tmp)
+                    },time = time)
+
+    ## making the checks
+
+   passVec <- rep(TRUE,nrow(x))
+   for(rows in seq_len(nrow(x))){
+       tmpPass <-c()
+       for(bound in seq_along(boundaries[[rows]])){
+
+           if(dataType[1] != "XE"){
+               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][1] < boundaries[[rows]][[bound]][2])
+           } else{
+               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][1] > boundaries[[rows]][[bound]][2])
+           }
+
+       }
+       ## This is where I need to fix this shit first
+       ## At the moment it is just using high light for consistency
+       ## Need to find a way to consider
+       ## This is something that needs to be fixed
+       # passVec[bound] <- !sum(tmpPass) ==0
+
+       passVec[rows] <- !sum(tmpPass) ==0
+    }
+
+    return(passVec)
 }
 
 
@@ -118,115 +144,54 @@
 }
 
 ## returns index of runs to drop or to retain
-selectDisks <- function(data,model=NULL,dataType=c("NPQ","XE","EF","OE"),method=c("MSE",0.005), time=c(40,80)){
-    ## this is crap! can be imporved and changed
-    ## There is no need for this change
-    ## but it's late and this faster to change
+selectPlants <- function(plants,measure=c("NPQ","XE","EF","OE"),method=c("MSE",0.005)){
 
-    if(method[1]=="MSE"){
-       R2<-c(T,method[2])
-       residualThreshold <-F
-
-    } else if(method[1]=="RSS"){
-        R2<-c(F,method[2])
-        residualThreshold <-c(T,method[2])
-    } else{
-      stop("Unknown Filter method! Either MSE or RSS")
+    ## first lets get time
+    ## need to add a check here
+    if(length(plants@time@timePoints)>0){
+        time <- plants@time@timePoints
+    } else {
+        warning("No Time Points have been set - using default 40 - 80")
+        time <- c(40,80)
     }
 
 
-    if(is.null(model)){
-        classType<-class(data)
-        buffer<-data
-        for(i in seq_along(data)){
-            for(j in seq_along(data[[i]])){
-                locIdx<-apply(data[[i]][[j]],1,.dataConsitency,dataType=names(data)[i],time=time)
-                buffer[[i]][[j]]<-locIdx
-            }
+    ## next check what type of
+    ## check we will be doing
+    models <- sum(unlist(slotApply(plants@models,length))) == 0
+    if(models){
+        template <- vector("list", length(slotNames(plants@measures)))
+        names(template)<- slotNames(plants@measures)
+        for(i in seq_along(measure)){
+            template[[measure[i]]] <- .dataConsitency(slot(plants@measures,measure[i]),measure[i],time)
         }
-    } else{
-      buffer<-data
-      modelType<-class(model)
-      for(i in seq_along(data)){
-          for(j in seq_along(data[[i]])){
-            if(residualThreshold[1]){
-                  locResi <- .modelThresholdSelection(model[[i]][[j]],residualThreshold[2],time,modelType=modelType)
+        ## Filtering over measures
+        template <- !apply(do.call("cbind",template),1,sum) < length(measure)
 
-            } else if(R2[1]){
-                  locResi <-.modelR2Selection(model[[i]][[j]],data[[i]][[j]],R2[2],time,modelType=modelType)
-            }
-              buffer[[i]][[j]]<-locResi
-          }
-      }
+        retain <- slotSubset(plants@measures,1,template)
+        dropped <- slotSubset(plants@measures,1,!template)
+
+        plants@retain <- slotAssign(plants@retain,retain)
+        plants@dropped <- slotAssign(plants@dropped,dropped)
+        if(sum(sapply(dropped, nrow))>0 &
+           sum(unlist(slotApply(plants@origin, function(origin){lapply(origin,length)})))>1){
+            message("Re-generating sample Origin after filtering")
+            plants <- getPlants(plants,splitby = plants@originType)
+        }
+
+    } else {
+message("blabla")
     }
-    return(buffer)
+
+    return(plants)
 }
 
 
 
 
-#### actually filtering disks
-## we are just writing a wrapped for select disks
 
-filterDisks <- function(data,idx,keep=c("retain","drop")){
-        classType<-class(data)
-        if(keep[1]=="retain"){
-            dropLoc<-vector("list", length(idx[[1]]))
-            for(i in seq_along(idx[[1]])){
-                 primer <- idx[[1]][[i]]
-                 for(j in seq(2,length(idx))){
 
-                     dropLoc[[i]]<-c(primer & idx[[j]][[i]])
 
-                 }
-            }
-#browser()
-            ### filtering out disks
-            for(i in seq_along(dropLoc)){
-               for(j in seq_along(data)){
-                    data[[j]][[i]]<-data[[j]][[i]][dropLoc[[i]],]
-               }
-            }
-            ## removing disks
-            for(i in seq_along(data)){
-                loc<-sapply(data[[i]],function(x){
-                            return(ifelse(nrow(x)>0,T,F))
-                            })
-                data[[i]]<-data[[i]][loc]
-                class(data[[i]])<-classType
-            }
-            class(data)<-classType
-        }else if(keep[1]=="drop"){
-          dropLoc<-vector("list", length(idx[[1]]))
 
-          for(i in seq_along(idx[[1]])){
-               primer <- !idx[[1]][[i]]
-               for(j in seq(2,length(idx))){
-                   dropLoc[[i]]<-c(primer | !idx[[j]][[i]])
 
-               }
 
-          }
-          ### filtering out disks
-          for(i in seq_along(dropLoc)){
-             for(j in seq_along(data)){
-                  data[[j]][[i]]<-data[[j]][[i]][dropLoc[[i]],]
-             }
-          }
-          ## removing disks
-          for(i in seq_along(data)){
-              loc<-sapply(data[[i]],function(x){
-                          return(ifelse(nrow(x)>0,T,F))
-                          })
-              data[[i]]<-data[[i]][loc]
-              class(data[[i]])<-classType
-          }
-          class(data)<-classType
-
-        }else{
-            stop("Ooops! I am not sure what argument you are parsing to keep
-                  Either retain or drop are accepted.")
-        }
-        return(data)
-
-}

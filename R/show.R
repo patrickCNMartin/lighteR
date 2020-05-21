@@ -31,6 +31,16 @@ setMethod("show",
                 cat(paste(measures["OE"], "sample(s) for OE \n"))
                 cat(paste(measures["EF"], "sample(s) for EF \n"))
               }
+              origin <- slotApply(object@origin, function(origin){lapply(origin,length)})
+
+              if(sum(unlist(origin))>=1){
+                  cat("@origins \n")
+                  cat(paste(origin[["NPQ"]], "sample Origin(s) for NPQ \n"))
+                  cat(paste(origin[["XE"]], "sample Origin(s) for XE \n"))
+                  cat(paste(origin[["OE"]], "sample Origin(s) for OE \n"))
+                  cat(paste(origin[["EF"]], "sample Origin(s) for EF \n"))
+              }
+
               if(length(grep("Zone",names(object@meta.data))) ==1 |
                  length(grepl("Image",names(object@meta.data)))==1){
                   cat("@meta.data \n")

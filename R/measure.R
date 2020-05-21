@@ -9,7 +9,14 @@
 ################################################################################
 ################################################################################
 
-lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
+lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local","global","none")){
+    ## making a few checks
+    if(any(!norm %in% c("local","global","none"))){
+        stop("Unknown norm type - Availbale normalisation : local, global, none")
+    } else {
+        norm <-norm[1]
+    }
+
     ## First lets check if the measure type are correct
     if(any(!measures %in% c("NPQ","XE","EF","OE"))){
         stop("Unknown measure type - Availbale measures : NPQ, XE, EF, OE")
@@ -28,8 +35,24 @@ lightResponse <- function(seed, measures = c("NPQ","XE","EF","OE")){
     names(lightRes) <- measures
     for(m in seq_along(lightRes)){
         tmp <- lapply(light,"[[",measures[m])
-        lightRes[[m]] <- do.call("rbind", tmp)
+        tmp <- do.call("rbind", tmp)
+        if(norm == "local"){
+
+            tmpLoc <- t(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){return(x/max(x))}))
+            tmp <- cbind(tmp[,colnames(tmp) %in% c("diskID","Zone")],tmpLoc)
+            lightRes[[m]] <- tmp
+        } else if(norm =="global"){
+            localMax <- max(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){return(max(x))}))
+            tmpLoc <- t(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x,l){return(x/l)},localMax))
+            light <- cbind(tmp[,colnames(tmp) %in% c("diskID","Zone")],tmpLoc)
+            lightRes[[m]] <- tmp
+        } else {
+            lightRes[[m]] <- tmp
+        }
+
     }
+
+
 
     ### Assinging measures
     types <- c("NPQ","XE","EF","OE")

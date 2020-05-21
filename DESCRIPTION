@@ -1,11 +1,12 @@
 Package: lighteR
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Analysis of light Response data from FluorImage
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Patrick C.N. Martin
+Maintainer: patrick.martin@bric.ku.dk
+Description: Using output from fluorImager software, lighteR
+loads, clean and splits data for modelling. Models data using various different models.
+Also you can do some neat plots
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
