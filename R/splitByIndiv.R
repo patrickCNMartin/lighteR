@@ -65,6 +65,6 @@ getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
     measures <- slotApply(measures,.extractByID,splitby=splitby,tagID=tagID)
     origin <- slotAssign(origin,measures)
     seed@origin <- origin
-    seed@originType <- splitby
+    seed@meta.param@originType <- splitby
     return(seed)
 }

@@ -35,10 +35,16 @@ setClass("models",slot = c (NPQ = "list",
 
 setClass("meta.param",slot = c (time ="vector",
                           timePoints = "vector",
+                          originType ="vector",
+                          models = "list",
                           nlsrStart = "list"),
-                    prototype = prototype(nlsrStart = list(a=10, b=7.5, c=5)))
+                      prototype = prototype(nlsrStart = list(a=10, b=7.5, c=5),
+                                            models = list("NPQ" = "No",
+                                                          "XE" = "No",
+                                                          "OE" = "No",
+                                                          "EF" = "No")))
 
-setClass("originType",slot = c(origin = "vector"))
+
 
 
 
@@ -57,8 +63,7 @@ setClass("seed",
                   retain = "retain",
                   dropped = "dropped",
                   meta.data = "list",
-                  meta.param = "meta.param",
-                  originType = "vector")
+                  meta.param = "meta.param")
          )
 
 

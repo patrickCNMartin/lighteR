@@ -51,6 +51,19 @@ setMethod("show",
                   cat(paste("Traits extracted from",traits[["OE"]], "sample(s) in OE \n"))
                   cat(paste("Traits extracted from",traits[["EF"]], "sample(s) in EF \n"))
               }
+
+              models <- slotApply(object@models, length)
+              modelType<- object@meta.param@models
+
+
+              if(sum(unlist(models))>=1){
+                  cat("@models \n")
+                  cat(paste(paste(modelType[["NPQ"]],collapse = " "),"models ran on NPQ data \n"))
+                  cat(paste(paste(modelType[["XE"]],collapse = " "),"models ran on XE data \n"))
+                  cat(paste(paste(modelType[["OE"]],collapse = " "),"models ran on OE data \n"))
+                  cat(paste(paste(modelType[["EF"]],collapse = " "),"models ran on EF data \n"))
+
+              }
              ### meta data info
               if(length(grep("Zone",names(object@meta.data))) ==1 |
                  length(grepl("Image",names(object@meta.data)))==1){

@@ -11,55 +11,6 @@
 
 
 
-.match.column.Type <- function(df){
-    # Removing meta data
-    localdf<-df[,12:ncol(df)]
-
-    # Filthy coersion
-    subdf<-as.vector(apply(apply(localdf,2,as.numeric),2, function(x){
-                                        if(all(is.na(x)))return(FALSE)
-                                        if(!all(is.na(x)))return(TRUE)
-                                      }))
-    idx<-c(rep(FALSE,11),subdf)
-    return(idx)
-}
-
-
-
-.nullConversion <- function(input){
-   if(input=="NULL"){
-     return(NULL)
-   }else{
-     return(input)
-   }
-}
-
-### this was to remove unwated space but it seems like grep can't find the patern
-.spaceRemoval<-function(id){
-
-    d<-lapply(id,function(x){
-           loc<-grep("",x,ignore.case=T)
-           return(x[-loc])
-
-    })
-    return(id)
-}
-
-.IDtag<-function(x,tag){
-     if(length(x)==length(tag)){
-       names(x)<-tag
-     } else if(length(x)<length(tag)){
-       miss <- c(paste(x,collapse=" "))
-       warning(paste("MAP ID ",miss, "does not follow template \n"),call. = FALSE)
-
-       x<-c(x,rep("missing",length(tag)-length(x)))
-       names(x)<-tag
-     }
-     return(x)
-}
-
-
-
 
 
 

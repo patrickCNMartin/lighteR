@@ -10,6 +10,11 @@
 ################################################################################
 
 modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plant","allPlants","medianPlant"), cores=1){
+    ## putting in the model types used
+    for( i in seq_along(models)){
+        seed@meta.param@models[[names(models)[i]]] <- models[[i]]
+    }
+
     ## Lets get time
     if(length(seed@meta.param@timePoints)>0){
         time <- seed@meta.param@timePoints
@@ -48,9 +53,13 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             ### If - model length check
             if(names(models)[mod] != "NPQ" & length(modelsInternal$model)==3){
                 stop("Triple model set-up only supported for NPQ")
+            } else if(length(modelsInternal$model)==3 & fit.to[1]=="allPlants"){
+                stop("Triple model set-up cannot be applied to allPlants - Dip Points will differ! \n
+                     Select either plant or medianPlant")
+
             } else if(names(models)[mod] == "NPQ" & length(modelsInternal$model)==3){
 
-                #####################################################################
+                ####################################################################
                 #####################################################################
                 ## Check if Traits have been computed
                 if(sum(unlist(slotApply(seed@traits, nrow)))==0){
@@ -61,15 +70,16 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                     time <- data.frame("startHighLight" = rep(1,nrow(measure)),
                                        "endHighLight" = rep(time[1],nrow(measure)),
                                        "startLowLight" = rep(time[1]+1, nrow(measure)),
-                                       "OverCompTime" = time[1] + dip,
+                                       "OverCompTime" = (time[1]+1) + dip,
                                        "endLowLight" = rep(time[2],nrow(measure))
                                        )
 
                     timeSplit <- .splitDfs(time,cores)
                 #browser()
                     measure <- .splitDfs(measure,cores)
-                    models[[mod]] <- mcmapply(.applyTripleModelFit,chunk=measure,timeSplit=timeSplit,
-                                              MoreArgs = list(modelsInternal = modelsInternal),mc.cores = cores)
+                    tmp<- mcmapply(.applyTripleModelFit,chunk=measure,timeSplit=timeSplit,
+                                              MoreArgs = list(modelsInternal = modelsInternal, fit.to = "plant"),mc.cores = cores)
+                    models[[mod]] <- unlist(tmp, recursive = FALSE)
                 }
                 #####################################################################
                 #####################################################################
@@ -79,8 +89,9 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 ## Two models or less
                 measure <- .splitDfs(measure,cores)
 
-                models[[mod]] <- mclapply(measure,.applyModelFit,time =time,
-                                        modelsInternal = modelsInternal,mc.cores = cores)
+                tmp <- mclapply(measure,.applyModelFit,time =time,
+                                        modelsInternal = modelsInternal,fit.to = "plant",mc.cores = cores)
+                models[[mod]] <- unlist(tmp,recursive = FALSE)
             }
             #####################################################################
             #####################################################################
@@ -96,6 +107,10 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             ### If - model length check
             if(names(models)[mod] != "NPQ" & length(modelsInternal$model)==3){
                 stop("Triple model set-up only supported for NPQ")
+            } else if(length(modelsInternal$model)==3 & fit.to[1]=="allPlants"){
+                stop("Triple model set-up cannot be applied to allPlants - Dip Points will differ! \n
+                     Select either plant or medianPlant")
+
             } else if(names(models)[mod] == "NPQ" & length(modelsInternal$model)==3){
 
                 #####################################################################
@@ -302,7 +317,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 .fitBeta<-function(dat){
     ## values must be strictly between 0 and 1 non included
 
-    dat$value[dat$value==1] <-0.999999999
+    dat[dat$value==1,"value"] <-0.999999999
     return(betareg(value ~ time, data=dat))
 }
 
@@ -406,6 +421,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         names(fittedModel) <- model
         for(mod in seq_along(model)){
             formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+
             fittedModel[[mod]] <- tryCatch(.fitModel(formattedChunk,fitParam = start[[mod]],type = model[[mod]]),
                                            error = function(cond){
                                                return(NA)
@@ -421,31 +437,127 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
     dip <- seed@traits@NPQ
     zone <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+    tag <- zone
     zone <- apply(zone,1,paste,collapse="")
 
     dip <- .quickSelect(dip,zone)
 
-    if(length(dip) != nrow(measure)) browser()
+
     timeLoc <- data.frame("startHighLight" = rep(1,nrow(measure)),
                       "endHighLight" = rep(time[1],nrow(measure)),
                       "startLowLight" = rep(time[1]+1, nrow(measure)),
-                      "OverCompTime" = time[1] + dip,
+                      "OverCompTime" = (time[1]+1) + dip,
                       "endLowLight" = rep(time[2],nrow(measure))
                       )
 
 
-    models <- .applyTripleModelFit(chunk=measure,timeSplit=timeLoc,
-                                    modelsInternal = modelsInternal,fit.to=fit.to)
+    ## extract some shit
+    start <- modelsInternal$start
+    model <- modelsInternal$model
 
-    return(models)
+
+    ## further chunking
+
+    if(fit.to[1]=="plant"){
+        fitted<-vector("list",nrow(measure))
+
+        for(row in seq_len(nrow(measure))){
+            h <- timeLoc[row,"startHighLight"]:timeLoc[row,"endHighLight"]
+            dfh <- cbind(tag[row,],measure[row,h])
+
+            d <- timeLoc[row,"startLowLight"]:timeLoc[row,"OverCompTime"]
+            dip <- cbind(tag[row,],measure[row,d])
+            l <- timeLoc[row,"OverCompTime"]:timeLoc[row,"endLowLight"]
+            dfl <-cbind(tag[row,],measure[row,l])
+
+            NewChunk <- list("HighLight"=dfh,"OverCompTime" = dip, "lowLight" = dfl)
+
+            fittedModel <-vector("list", length(model))
+            names(fittedModel) <- model
+
+            for(mod in seq_along(model)){
+                formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+                fittedModel[[mod]] <- tryCatch(.fitModel(formattedChunk,fitParam = start[[mod]],type = model[[mod]]),
+                                                error = function(cond){
+                                                return(NA)
+                                                })
+            }
+            fitted[[row]] <- fittedModel
+        }
+    }else{
+
+        h <- unique(timeLoc[,"startHighLight"]):unique(timeLoc[,"endHighLight"])
+        dfh <- cbind(tag,measure[,h])
+
+        over <- median(timeLoc[,"OverCompTime"])
+        d <- unique(timeLoc[,"startLowLight"])
+        dip <- cbind(tag,measure[,d:over])
+        l <- over:unique(timeLoc[,"endLowLight"])
+        dfl <-cbind(tag,measure[,l])
+
+        NewChunk <- list("HighLight"=dfh,"OverCompTime" = dip, "lowLight" = dfl)
+        fittedModel <-vector("list", length(model))
+        names(fittedModel) <- model
+
+        for(mod in seq_along(model)){
+            formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+            fittedModel[[mod]] <- lapply(formattedChunk,function(chunk,fitParam,type){
+                                        res<-tryCatch(.fitModel(chunk,fitParam,type),
+                                        error = function(cond){
+                                                return(na)
+                                                })
+                                        return(res)
+                                    },fitParam = start[[mod]],type = model[[mod]])
+            #error = function(cond){
+            #   return(NA)
+            #})
+        }
+        fitted <- list(fittedModel)
+
+    }
+    return(fitted)
 }
 
 
 .applyModelFitOrigin <- function(measure,seed,time,modelsInternal,fit.to,cores){
 
+    start <- modelsInternal$start
+    model <- modelsInternal$model
 
-    models <- .applyModelFit(measure,time =time,
-                              modelsInternal = modelsInternal,fit.to=fit.to)
-    return(models)
+    tag <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+
+    ## further chunking
+    fitted<-vector("list",nrow(measure))
+
+    h <- seq(1,time[1])
+    dfh <- cbind(tag,measure[,h])
+
+    l <- seq(time[1]+1,time[2])
+    dfl <-cbind(tag,measure[,l])
+
+    NewChunk <- list("HighLight"=dfh,"lowLight" = dfl)
+
+    fittedModel <-vector("list", length(model))
+    names(fittedModel) <- model
+    for(mod in seq_along(model)){
+        if(fit.to[1] == "plant"){
+            formattedChunk <- list(.formatConversion(NewChunk[[mod]],fit.to = fit.to))
+        } else {
+            formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+        }
+
+
+        fittedModel[[mod]] <- lapply(formattedChunk,function(chunk,fitParam,type){
+                                    res<-tryCatch(.fitModel(chunk,fitParam,type),
+                                                    error = function(cond){
+                                                    return(na)
+                                                    })
+                                    return(res)
+                            },fitParam = start[[mod]],type = model[[mod]])
+
+    }
+    fitted <- list(fittedModel)
+
+    return(fitted)
 }
 

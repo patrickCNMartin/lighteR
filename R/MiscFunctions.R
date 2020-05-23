@@ -44,6 +44,62 @@
 }
 
 
+
+.match.column.Type <- function(df){
+    # Removing meta data
+    localdf<-df[,12:ncol(df)]
+
+    # Filthy coersion
+    subdf<-as.vector(apply(apply(localdf,2,as.numeric),2, function(x){
+        if(all(is.na(x)))return(FALSE)
+        if(!all(is.na(x)))return(TRUE)
+    }))
+    idx<-c(rep(FALSE,11),subdf)
+    return(idx)
+}
+
+
+
+.nullConversion <- function(input){
+    if(input=="NULL"){
+        return(NULL)
+    }else{
+        return(input)
+    }
+}
+
+### this was to remove unwated space but it seems like grep can't find the patern
+.spaceRemoval<-function(id){
+
+    d<-lapply(id,function(x){
+        loc<-grep("",x,ignore.case=T)
+        return(x[-loc])
+
+    })
+    return(id)
+}
+
+.IDtag<-function(x,tag){
+    if(length(x)==length(tag)){
+        names(x)<-tag
+    } else if(length(x)<length(tag)){
+        miss <- c(paste(x,collapse=" "))
+        warning(paste("MAP ID ",miss, "does not follow template \n"),call. = FALSE)
+
+        x<-c(x,rep("missing",length(tag)-length(x)))
+        names(x)<-tag
+    }
+    return(x)
+}
+
+
+.polyRefit<-function(model,seq){
+
+    div<- length(model)/length(seq)
+    model <- model[seq(1,length(model), by=div)]
+    return(model)
+}
+
 ### Plate error checks
 .plateError <- function(roots){
     ## First need to check the nature of the roots
@@ -137,6 +193,16 @@ slotSubset <- function(x,dim =1,template){
     result
 }
 
+slotCombine <- function(x,y){
+    cl <- class(x)
+
+    for(i in slotNames(cl)){
+        tmp <- slot(x,i)
+        tmp <- rbind(tmp,y[[i]])
+        slot(x,i)<-tmp
+    }
+    return(x)
+}
 
 ## setting light time points
 
@@ -148,7 +214,7 @@ setTimePoints <- function(seed,timePoints){
 }
 
 ## set Starting gumbel
-setTimePoints <- function(seed,start){
+setStartPoints <- function(seed,start){
     #time <- new("time")
     seed@meta.param@nslrStart <- start
 
@@ -160,8 +226,9 @@ setTimePoints <- function(seed,start){
     if(cores>1 & cores < nrow(ranges)){
         SplitRanges <- floor(seq(1,nrow(ranges),length.out=cores+1))
         rangeSet<-vector("list",(cores))
-        start <- SplitRanges[1:(nrow(SplitRanges)-1),]
-        end <- rbind(SplitRanges[2:(nrow(SplitRanges)-1),]-1,SplitRanges[nrow(SplitRanges),])
+
+        start <- SplitRanges[1:(length(SplitRanges)-1)]
+        end <- c(SplitRanges[2:(length(SplitRanges)-1)]-1,SplitRanges[length(SplitRanges)])
 
         for(i in seq_len(cores)){
             rangeSet[[i]]<-ranges[start[i]:end[i],]
@@ -199,7 +266,7 @@ setTimePoints <- function(seed,start){
                                         each=nrow(dat)))
         }
 
-        # clean this shit up
+
 
 
     } else if(fit.to[1] == "allPlants"){
@@ -242,9 +309,12 @@ setTimePoints <- function(seed,start){
 
             df[[i]]<-tmp
         }
-        if(length(df)==0)browser()
+
+
         df<-.setMedian(df)
 
+    } else {
+        stop("fit.to should be one of the following: plant, allPlants, medianPlant")
     }
     return(df)
 }
