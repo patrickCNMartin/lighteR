@@ -117,17 +117,19 @@
 ################################################################################
 #MSE
 
-.RSSOriginSelection <- function(models, threshold,cores){
 
-}
 
-.RSSSelection <- function(models,seed,trait,threshold,time,cores){
+.RSSSelection <- function(models,seed,trait,threshold,time,cores=1,origin=FALSE){
     modelType <- all(sapply(models, length) == 3)
     if(modelType){
 
 
-        zone <- seed[,colnames(seed) %in% c("diskID","Zone")]
-        tag <- zone
+        if(!origin){
+            zone <- seed[,colnames(seed) %in% c("diskID","Zone")]
+            tag <- zone
+        } else {
+            zone <- seed[,colnames(seed) %in% c("diskID","plot","pedigree","line","stem")]
+        }
         zone <- apply(zone,1,paste,collapse="")
 
         dip <- .quickSelect(trait,zone)
@@ -135,7 +137,7 @@
                               "endHighLight" = rep(time[1],nrow(seed)),
                               "startLowLight" = rep(time[1]+1, nrow(seed)),
                               "OverCompTime" = (time[1]+1) + dip,
-                              "OverCompTime" = (time[1]+1) + dip,
+                              "OverCompTime" = (time[1]+2) + dip,
                               "endLowLight" = rep(time[2],nrow(seed)))
 
     } else {
@@ -145,16 +147,32 @@
                               "endLowLight" = rep(time[2],nrow(seed)))
     }
     ## seed split by row
-    seed <- split(seed, seq(nrow(seed)))
-    timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
-    models <- mcmapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
+
+
+    if(!origin){
+        seed <- split(seed, seq(nrow(seed)))
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+        models <- mcmapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
+    } else {
+
+        models <- .orderModels(models)
+        seed <- split(seed, seq(nrow(seed)))
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+        models <- mapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold,origin=TRUE))
+    }
+
 
     return(models)
 }
 
-.RSSSelect <- function(model,data,time,threshold=5){
+.RSSSelect <- function(model,data,time,threshold=5, origin=FALSE){
     modelLocal <- c()
-    dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
+    if(!origin){
+        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
+
+    }else {
+        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","plot","pedigree","line","stem")]))
+    }
 
     timeLoc <- vector("list", length(model))
     count <- 1
@@ -171,38 +189,57 @@
     timeLoc <- lapply(timeLoc[!is.na(model)], unlist)
     for(mod in seq_along(model)){
 
-        #ti <- seq(timeLoc[[mod]][1] ,timeLoc[[mod]][2])
-        modelLocal <- c(modelLocal,as.vector(res(model[[mod]])))
+
+        modelLocal <- c(modelLocal,as.vector(res(model[[mod]]))^2)
     }
 
 
-    RSSThresh <- sum(dataLocal,modelLocal)
+    RSSThresh <- sum(modelLocal)
 
     return(RSSThresh < threshold)
 }
 
-.MSEOriginSelection <- function(models,seed,trait,threshold,time,cores){
 
-}
 
-.MSESelection <- function(models,seed,trait,threshold,time,cores){
+
+
+
+
+.MSESelection <- function(models,seed,trait,threshold,time,cores=1,origin=FALSE){
 
     ## Time extraction
+    if(origin){
+        models <- .orderModels(models)
+        modelType <- all(sapply(models, length) == 3)
+    } else {
+        modelType <- all(sapply(models, length) == 3)
+    }
 
-    modelType <- all(sapply(models, length) == 3)
     if(modelType){
 
+        if(!origin){
+            zone <- seed[,colnames(seed) %in% c("diskID","Zone")]
+            tag <- zone
+        } else {
+            zone <- seed[,colnames(seed) %in% c("diskID","plot","pedigree","line","stem")]
+            tag <- zone
+        }
 
-        zone <- seed[,colnames(seed) %in% c("diskID","Zone")]
-        tag <- zone
         zone <- apply(zone,1,paste,collapse="")
 
         dip <- .quickSelect(trait,zone)
+        ### Taking care of weird over comp times
+        overcomp <-(time[1]+1) + dip
+        overcomp2 <-(time[1]+1) + dip +1
+
+        overcomp[overcomp >time[2]] <- time[2]
+        overcomp2[overcomp2 >time[2]] <- time[2]
+
         timeLoc <- data.frame("startHighLight" = rep(1,nrow(seed)),
                               "endHighLight" = rep(time[1],nrow(seed)),
                               "startLowLight" = rep(time[1]+1, nrow(seed)),
-                              "OverCompTime" = (time[1]+1) + dip,
-                              "OverCompTime" = (time[1]+1) + dip,
+                              "OverCompTime" = overcomp,
+                              "OverCompTime" = overcomp2,
                               "endLowLight" = rep(time[2],nrow(seed)))
 
     } else {
@@ -212,42 +249,72 @@
                               "endLowLight" = rep(time[2],nrow(seed)))
     }
     ## seed split by row
-    seed <- split(seed, seq(nrow(seed)))
-    timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
-    models <- mcmapply(.MSESelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
+    if(!origin){
+        seed <- split(seed, seq(nrow(seed)))
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+
+        models <- mcmapply(.MSESelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
+    } else {
+
+
+        seed <- split(seed, seq(nrow(seed)))
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+
+        models <- mapply(.MSESelect,models,seed,timeLoc,MoreArgs = list(threshold,origin=TRUE))
+    }
+
     return(models)
 
 }
 
 
-.MSESelect<-function(model,data,time,threshold=0.05){
+.MSESelect<-function(model,data,time,threshold=0.05,origin=FALSE){
 
     ## This is assuming that it comes in one big ass data frame
     ## The question is
     ## Would it be worth it to just do a full merge of both models and then run MSE on
     ## the whole thing instead of having high light and low light? That might be easier
     modelLocal <- c()
-    dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
+    if(!origin){
+        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
+
+    }else {
+        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","plot","pedigree","line","stem")]))
+    }
+
 
     timeLoc <- vector("list", length(model))
     count <- 1
+
     for(t in seq(1,by=2,length.out =length(model))){
+
         timeLoc[[count]] <- c(time[t], time[t+1])
         count <- count +1
     }
+
     if(sum(!is.na(model))<length(model)){
         warning("At least one model failed! Model Goodness of fit will be approximated on remaining models")
+        tmp <- which(is.na(model))
+
+        colRem <- seq(timeLoc[[tmp]][[1]], timeLoc[[tmp]][[2]])
+        if(length(colRem)!=1){
+            dataLocal <-dataLocal[-colRem]
+        }
+
     }
     model <- model[!is.na(model)]
     timeLoc <- lapply(timeLoc[!is.na(model)], unlist)
+    loc <- c()
     for(mod in seq_along(model)){
 
-        t <- seq(1,timeLoc[[mod]][2]-timeLoc[[mod]][1]+1)
+        ti <- seq(1,(timeLoc[[mod]][[2]]-timeLoc[[mod]][[1]])+1)
 
-        modelLocal <- c(modelLocal,.extractFittedModel(model[[mod]],t,names(model)[mod]))
+
+        modelLocal <- c(modelLocal,.extractFittedModel(model[[mod]],ti,names(model)[mod]))
     }
+     #if(length(dataLocal) != length(modelLocal))browser()
 
-     MSEThresh <- .intMSE(dataLocal,modelLocal)
+     MSEThresh <- suppressWarnings(.intMSE(dataLocal,modelLocal))
 
 
 
@@ -294,6 +361,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
     } else {
         models <- seed@models
         modelType <- seed@meta.param@models
+        fit.to <- seed@meta.param@fitto
 
         ### There is a better way of doing this but at the moment i will keep this
         meth <- method[1]
@@ -307,6 +375,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
 
         ## extracting models
         template <- vector("list", length(measure))
+        names(template) <-measure
         for(i in seq_along(measure)){
             tmp <- modelType[[measure[i]]]
 
@@ -321,7 +390,9 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                 plant <- slot(seed@measures,measure[i])
             } else if(!is.retain.empty) {
                 plant <- slot(seed@retain, measure[i])
-            } else if(is.origin.empty){
+            }
+            if(!is.origin.empty){
+
                 plant <- slot(seed@origin, measure[i])
             }
             is.trait.empty <- sum(unlist(slotApply(seed@traits, length)))==0
@@ -339,7 +410,9 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
 
 
                 } else {
-                    template[[i]] <- .MSEOriginSelection(mods,plant,trait,threshold,time,cores)
+
+                    template[[i]] <- mcmapply(.MSESelection,mods,plant,
+                                              MoreArgs = list(trait,threshold,time,fit.to,origin=TRUE),mc.cores =cores)
 
                 }
             } else if(meth == "RSS"){
@@ -349,36 +422,75 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                     template[[i]] <- .RSSSelection(mods,plant,trait,threshold,time,cores)
                 } else {
 
-                    template[[i]] <- .RSSOriginSelection(mods,plant,trait,threshold,time,cores)
+                    template[[i]] <- mcmapply(.RSSSelection,mods,plant,
+                                              MoreArgs = list(trait,threshold,time,fit.to,origin =TRUE),mc.cores=cores)
                 }
             } else {
                 stop("Unkown model selection method - Select from MSE or RSS")
             }
         }
+        ### Subsetting
 
-
-        if(is.origin.empty){
-
-            template <- !apply(do.call("cbind",template),1,sum) < sum(!grepl("No",modelType))
-            if(is.retain.empty){
-                retain <- slotSubset(seed@measures,1,template)
-                dropped <- slotSubset(seed@measures,1,!template)
-            } else {
-                retain <- slotSubset(seed@retain,1,template)
-                dropped <- slotSubset(seed@retain,1,!template)
+        ## Checking if origin is empty again
+        if(!is.origin.empty){
+            models <- seed@models
+            modelType <- seed@meta.param@models
+            mods <- vector("list", length(measure))
+            for(i in seq_along(models)){
+                tmp <- modelType[[measure[i]]]
+                if(any(grepl("No", tmp, ignore.case=TRUE))){
+                    next()
+                }
+                tmpMod <- slot(models,measure[i])
+                mods[[i]] <- mapply(function(mods,temp){
+                                return(mods[temp])
+                },tmpMod,template[[i]])
             }
+            models <- mods
 
 
-            seed@retain <- slotAssign(seed@retain,retain)
-            seed@dropped <- slotCombine(seed@dropped,dropped)
-            fullDrop <- unique(slotApply(seed@dropped,nrow))
-            seed@meta.data$dropped <- c("retain"=sum(template),"dropped"=fullDrop)
+            templ <- lapply(template,function(x){
+                if(!is.null(x)){
+                    return(do.call("c",x))
+                } else {
+                    return(NULL)
+                }})
+            template <- !apply(do.call("cbind",templ),1,sum) < sum(!grepl("No",modelType))
         } else {
-print("bla")
+            template <- !apply(do.call("cbind",template),1,sum) < sum(!grepl("No",modelType))
+            models <- slotListSub(seed@models,template)
+
         }
 
-        #
+        ## at leat for dropped and retained
 
+        if(is.retain.empty){
+            retain <- slotSubset(seed@measures,1,template)
+            dropped <- slotSubset(seed@measures,1,!template)
+        } else {
+            retain <- slotSubset(seed@retain,1,template)
+            dropped <- slotSubset(seed@retain,1,!template)
+        }
+        if(!is.trait.empty){
+            traits <- slotSubset(seed@traits,1,template)
+            seed@traits <- slotAssign(seed@traits,traits)
+        }
+        ## filter models out
+
+
+        seed@retain <- slotAssign(seed@retain,retain)
+
+        models[sapply(models,is.null)] <- list("No Models")
+        seed@models <- slotAssign(seed@models,models)
+        seed@dropped <- slotCombine(seed@dropped,dropped)
+        fullDrop <- unique(slotApply(seed@dropped,nrow))
+        seed@meta.data$dropped <- c("retain"=sum(template),"dropped"=fullDrop)
+
+        if(sum(sapply(dropped, nrow))>0 &
+           sum(unlist(slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
+            message("Re-generating sample Origin after filtering")
+            seed <- getOrigin(seed,splitby = seed@meta.param@originType)
+        }
     }
 
     return(seed)

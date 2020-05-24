@@ -56,7 +56,7 @@ getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
 
     if(sum(unlist(slotApply(seed@retain,length)))>0){
         measures <- seed@retain
-        print("retain")
+
     } else {
         measures <- seed@measures
     }

@@ -9,7 +9,7 @@
 ################################################################################
 ################################################################################
 
-getTraits <- function(seed,measure = c("NPQ","XE","EF","OE")){
+getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
     # Extracting time points
     if(length(seed@meta.param@timePoints)>0){
         time <- seed@meta.param@timePoints
@@ -33,9 +33,86 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE")){
         param <- slotExtractParam(measures,.extractParam,time)
         seed@traits <- slotAssign(seed@traits,param)
     } else {
-print("bla")
-    }
+        models <- seed@models
+        modelType <- seed@meta.param@models
 
+        is.origin.empty <-sum(unlist(slotApply(seed@origin,length))) == 0
+        is.retain.empty<- sum(unlist(slotApply(seed@retain,length))) == 0
+        is.trait.empty<- sum(unlist(slotApply(seed@traits,length))) == 0
+        template <- vector("list", length(measure))
+        names(template)<-measure
+        for(i in seq_along(measure)){
+            tmp <- modelType[[measure[i]]]
+
+            if(any(grepl("No", tmp, ignore.case=TRUE))){
+                 warning(paste(measure[i],"models have not been computed - skipping measure"))
+                next()
+            }
+
+            if(is.retain.empty){
+                plant <- slot(seed@measures,measure[i])
+            } else if(!is.retain.empty) {
+                plant <- slot(seed@retain, measure[i])
+            }
+            if(!is.origin.empty){
+
+                plant <- slot(seed@origin, measure[i])
+            }
+
+            if(is.trait.empty){
+                trait <- NULL
+            } else{
+                trait <- slot(seed@traits, measure[i])
+            }
+            mods <- slot(models,measure[i])
+            if(is.origin.empty){
+                template[[i]] <- .extractModels(mods[[1]],plant,trait,time,origin=FALSE,cores)
+
+
+
+            } else {
+
+                template[[i]] <- mcmapply(.extractModels,mods,plant,
+                                          MoreArgs = list(trait,time,origin=TRUE),mc.cores =cores)
+
+            }
+        }
+
+        if(!is.origin.empty){
+            ## re-orient df
+            #browser()
+            template <- lapply(template, function(tmp){
+                                if(!is.null(tmp)){
+
+                                    tmp <- suppressWarnings(lapply(tmp,function(x)do.call("rbind",matrix(x,ncol=length(x)))))
+
+                                    tmp <- do.call("rbind", tmp)
+                                    return(as.data.frame(tmp))
+                                }else{
+                                    return(data.frame())
+                                }
+                            })
+
+        } else {
+            for(i in seq_along(template)){
+                if(!is.null(template[[i]])){
+
+                    template[[i]] <- as.data.frame(do.call("rbind",template[[i]]))
+                } else {
+                    template[[i]] <- data.frame()
+                }
+            }
+        }
+
+        if(!is.trait.empty){
+            seed@traits <- slotAssign(seed@traits,template)
+        } else {
+            seed@traits <- slotAddTraits(seed@traits,template)
+        }
+
+
+
+    }
     return(seed)
 }
 
@@ -89,6 +166,117 @@ print("bla")
     param <- cbind(tags,param)
     return(param)
 
+}
+
+
+.extractModels <- function(models,seed,trait,time,origin =FALSE,cores=1){
+    ## Time extraction
+    if(origin == TRUE){
+        models <- .orderModels(models)
+        modelType <- all(sapply(models, length) == 3)
+        zone <- seed[,colnames(seed) %in% c("diskID","plot","pedigree","line","stem")]
+        tag <- zone
+    } else {
+
+        modelType <- all(sapply(models, length) == 3)
+        zone <- seed[,colnames(seed) %in% c("diskID","Zone")]
+        tag <- zone
+    }
+
+
+    if(modelType){
+
+
+        zone <- apply(zone,1,paste,collapse="")
+
+        dip <- .quickSelect(trait,zone)
+        ### Taking care of weird over comp times
+        overcomp <-(time[1]+1) + dip
+        overcomp2 <-(time[1]+1) + dip +1
+
+        overcomp[overcomp >time[2]] <- time[2]
+        overcomp2[overcomp2 >time[2]] <- time[2]
+
+        timeLoc <- data.frame("startHighLight" = rep(1,nrow(seed)),
+                              "endHighLight" = rep(time[1],nrow(seed)),
+                              "startLowLight" = rep(time[1]+1, nrow(seed)),
+                              "OverCompTime" = overcomp,
+                              "OverCompTime" = overcomp2,
+                              "endLowLight" = rep(time[2],nrow(seed)))
+
+    } else {
+        timeLoc <- data.frame("startHighLight" = rep(1,nrow(seed)),
+                              "endHighLight" = rep(time[1],nrow(seed)),
+                              "startLowLight" = rep(time[1]+1, nrow(seed)),
+                              "endLowLight" = rep(time[2],nrow(seed)))
+    }
+    ## seed split by row
+    if(origin==FALSE){
+
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+
+        tag <- split(tag,seq(nrow(tag)))
+
+        tag <- lapply(tag,function(x){
+            as.character(as.vector(as.matrix(x)))})
+        models <- mcmapply(.SelectFitted,models,timeLoc,tag,SIMPLIFY = FALSE ,mc.cores=cores)
+        models <- lapply(models, unlist)
+
+
+    } else {
+
+        timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+
+        tag <- split(tag, seq(nrow(tag)))
+        tag <- lapply(tag,function(x){
+            as.character(as.vector(as.matrix(x)))})
+
+        models <- mapply(.SelectFitted,models,timeLoc,tag,MoreArgs = list(origin=TRUE),SIMPLIFY= FALSE)
+
+    }
+
+    return(models)
+
+}
+
+
+.SelectFitted <- function(model,time,tags,origin=FALSE){
+
+    ### Using filtering function as template
+    ## they work in similar ways
+    modelLocal <- c()
+    coefs <- c()
+    timeLoc <- vector("list", length(model))
+    count <- 1
+
+    for(t in seq(1,by=2,length.out =length(model))){
+        timeLoc[[count]] <- c(time[t], time[t+1])
+        count <- count +1
+    }
+
+
+    nas <- is.na(model)
+    tag <- c()
+    for(mod in seq_along(model)){
+
+        ti <- seq(1,(timeLoc[[mod]][[2]]-timeLoc[[mod]][[1]])+1)
+        if(any(names(timeLoc[[mod]]) %in% "OverCompTime.1")){
+            if(timeLoc[[mod]]$OverCompTime.1 ==timeLoc[[mod]]$endLowLight) next()
+        }
+
+        if(nas[mod]){
+            modelLocal <- c(modelLocal,rep(NA,length(ti)))
+            coefs <-c(coefs,rep(NA,3))
+        } else {
+            modelLocal <- c(modelLocal,.extractFittedModel(model[[mod]],ti,names(model)[mod]))
+            coefs <- c(coefs,coef(model[[mod]]))
+        }
+        tag <- c(tag, paste0(rep(names(model)[mod],length(ti)),mod))
+    }
+    names(modelLocal) <- tag
+    mods <- c(as.character(tags),coefs,modelLocal)
+
+    return(mods)
 }
 
 

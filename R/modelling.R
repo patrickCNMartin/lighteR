@@ -67,19 +67,27 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 } else {
                 #browser()
                     dip <- seed@traits@NPQ$OverCompTime
+
+
                     time <- data.frame("startHighLight" = rep(1,nrow(measure)),
                                        "endHighLight" = rep(time[1],nrow(measure)),
                                        "startLowLight" = rep(time[1]+1, nrow(measure)),
                                        "OverCompTime" = (time[1]+1) + dip,
                                        "endLowLight" = rep(time[2],nrow(measure))
                                        )
+                    ## Removing bad measures
+                    ## This will be filtered later anyway
+                    time$OverCompTime[time$OverCompTime >time$endLowLight] <- time$endLowLight[time$OverCompTime >time$endLowLight]
 
                     timeSplit <- .splitDfs(time,cores)
                 #browser()
                     measure <- .splitDfs(measure,cores)
                     tmp<- mcmapply(.applyTripleModelFit,chunk=measure,timeSplit=timeSplit,
-                                              MoreArgs = list(modelsInternal = modelsInternal, fit.to = "plant"),mc.cores = cores)
+                                              MoreArgs = list(modelsInternal = modelsInternal, fit.to = "plant"),
+                                              SIMPLIFY = FALSE,mc.cores = cores)
+
                     models[[mod]] <- unlist(tmp, recursive = FALSE)
+                    #models[[mod]] <-tmp
                 }
                 #####################################################################
                 #####################################################################
@@ -90,8 +98,10 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 measure <- .splitDfs(measure,cores)
 
                 tmp <- mclapply(measure,.applyModelFit,time =time,
-                                        modelsInternal = modelsInternal,fit.to = "plant",mc.cores = cores)
-                models[[mod]] <- unlist(tmp,recursive = FALSE)
+                                        modelsInternal = modelsInternal,fit.to = "plant",
+                                        mc.cores = cores)
+                #models[[mod]] <- unlist(tmp,recursive = FALSE)
+                models[[mod]] <-tmp
             }
             #####################################################################
             #####################################################################
@@ -169,7 +179,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                      EF =EF,
                      OE = OE)
 
-
+    seed@meta.param@fitto <- fit.to
     seed@models <- mods
     return(seed)
 
@@ -200,9 +210,9 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
         ## change the ones that need to be chnaged
         if(length(classCheck)==1){
-            start[[classCheck]]<-as.numeric(tmp[classCheck])
+            start[classCheck]<-as.numeric(tmp[classCheck])
             tmp[classCheck]<-"poly"
-        } else if(length(classCheck)==2){
+        } else {
             start[classCheck]<-as.numeric(tmp[classCheck])
             tmp[classCheck]<-"poly"
         }
@@ -215,7 +225,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         classCheck<-grep("([0-9]+).*$",tmp)
         ## change the ones that need to be chnaged
         if(length(classCheck)!=0){
-            start[[classCheck]]<-as.numeric(tmp[classCheck])
+            start[classCheck]<-as.numeric(tmp[classCheck])
             tmp[classCheck]<-"poly"
         }
     }
@@ -364,18 +374,25 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     ## adding tags
     if(any(colnames(chunk) %in% c("plot","pedigree","line","stem"))){
         tag <- chunk[,colnames(chunk) %in% c("diskID","plot","pedigree","line","stem")]
+        chunk <- chunk[,!colnames(chunk) %in% c("diskID","plot","pedigree","line","stem")]
     } else {
         tag <- chunk[, colnames(chunk) %in%  c("diskID","Zone")]
+        chunk<-chunk[, !colnames(chunk) %in%  c("diskID","Zone")]
     }
+
+
     ## further chunking
     fitted<-vector("list",nrow(chunk))
     for(row in seq_len(nrow(chunk))){
-        h <- timeSplit[row,"startHighLight"]:timeSplit[row,"endHighLight"]
+
+        h <- seq(timeSplit[row,"startHighLight"],timeSplit[row,"endHighLight"])
         dfh <- cbind(tag[row,],chunk[row,h])
 
-        d <- timeSplit[row,"startLowLight"]:timeSplit[row,"OverCompTime"]
+        d <- seq(timeSplit[row,"startLowLight"],timeSplit[row,"OverCompTime"])
         dip <- cbind(tag[row,],chunk[row,d])
-        l <- timeSplit[row,"OverCompTime"]:timeSplit[row,"endLowLight"]
+
+        l <- seq(timeSplit[row,"OverCompTime"],timeSplit[row,"endLowLight"])
+
         dfl <-cbind(tag[row,],chunk[row,l])
 
         NewChunk <- list("HighLight"=dfh,"OverCompTime" = dip, "lowLight" = dfl)
@@ -385,6 +402,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
         for(mod in seq_along(model)){
             formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+
             fittedModel[[mod]] <- tryCatch(.fitModel(formattedChunk,fitParam = start[[mod]],type = model[[mod]]),
                                            error = function(cond){
                                                return(NA)
@@ -392,6 +410,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         }
         fitted[[row]] <- fittedModel
     }
+
     return(fitted)
 }
 
@@ -403,8 +422,10 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     model <- modelsInternal$model
     if(any(colnames(chunk) %in% c("plot","pedigree","line","stem"))){
         tag <- chunk[,colnames(chunk) %in% c("diskID","plot","pedigree","line","stem")]
+        chunk <- chunk[,!colnames(chunk) %in% c("diskID","plot","pedigree","line","stem")]
     } else {
         tag <- chunk[, colnames(chunk) %in%  c("diskID","Zone")]
+        chunk<-chunk[, !colnames(chunk) %in%  c("diskID","Zone")]
     }
     ## further chunking
     fitted<-vector("list",nrow(chunk))
@@ -437,6 +458,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
     dip <- seed@traits@NPQ
     zone <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+    measure<-measure[,!colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
     tag <- zone
     zone <- apply(zone,1,paste,collapse="")
 
@@ -450,7 +472,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                       "endLowLight" = rep(time[2],nrow(measure))
                       )
 
-
+    timeLoc$OverCompTime[timeLoc$OverCompTime >timeLoc$endLowLight] <- timeLoc$endLowLight[timeLoc$OverCompTime >timeLoc$endLowLight]
     ## extract some shit
     start <- modelsInternal$start
     model <- modelsInternal$model
@@ -462,12 +484,15 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         fitted<-vector("list",nrow(measure))
 
         for(row in seq_len(nrow(measure))){
-            h <- timeLoc[row,"startHighLight"]:timeLoc[row,"endHighLight"]
+            h <- seq(timeLoc[row,"startHighLight"],timeLoc[row,"endHighLight"])
+
             dfh <- cbind(tag[row,],measure[row,h])
 
-            d <- timeLoc[row,"startLowLight"]:timeLoc[row,"OverCompTime"]
+            d <- seq(timeLoc[row,"startLowLight"],timeLoc[row,"OverCompTime"])
             dip <- cbind(tag[row,],measure[row,d])
-            l <- timeLoc[row,"OverCompTime"]:timeLoc[row,"endLowLight"]
+
+            l <- seq(timeLoc[row,"OverCompTime"],timeLoc[row,"endLowLight"])
+
             dfl <-cbind(tag[row,],measure[row,l])
 
             NewChunk <- list("HighLight"=dfh,"OverCompTime" = dip, "lowLight" = dfl)
@@ -486,13 +511,13 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         }
     }else{
 
-        h <- unique(timeLoc[,"startHighLight"]):unique(timeLoc[,"endHighLight"])
+        h <- seq(unique(timeLoc[,"startHighLight"]),unique(timeLoc[,"endHighLight"]))
         dfh <- cbind(tag,measure[,h])
 
         over <- median(timeLoc[,"OverCompTime"])
         d <- unique(timeLoc[,"startLowLight"])
         dip <- cbind(tag,measure[,d:over])
-        l <- over:unique(timeLoc[,"endLowLight"])
+        l <- seq(over,unique(timeLoc[,"endLowLight"]))
         dfl <-cbind(tag,measure[,l])
 
         NewChunk <- list("HighLight"=dfh,"OverCompTime" = dip, "lowLight" = dfl)
@@ -512,7 +537,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             #   return(NA)
             #})
         }
-        fitted <- list(fittedModel)
+        fitted <- fittedModel
 
     }
     return(fitted)
@@ -525,6 +550,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     model <- modelsInternal$model
 
     tag <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+    measure<-measure[,!colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
 
     ## further chunking
     fitted<-vector("list",nrow(measure))
@@ -556,7 +582,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                             },fitParam = start[[mod]],type = model[[mod]])
 
     }
-    fitted <- list(fittedModel)
+    fitted <- fittedModel
 
     return(fitted)
 }

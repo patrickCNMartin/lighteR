@@ -171,7 +171,7 @@ slotAssign <- function(x,y){
     cl <- class(x)
 
     for(i in slotNames(cl)){
-
+        if(is.null(y[[i]]))next()
         slot(x,i)<-y[[i]]
     }
     return(x)
@@ -192,6 +192,16 @@ slotSubset <- function(x,dim =1,template){
     }
     result
 }
+slotListSub<- function(x,template){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+
+            result[[i]] <- slot(x,i)[[template]]
+    }
+    result
+}
+
 
 slotCombine <- function(x,y){
     cl <- class(x)
@@ -204,6 +214,26 @@ slotCombine <- function(x,y){
     return(x)
 }
 
+
+slotAddTraits <- function(x,y){
+    cl <- class(x)
+
+    for(i in slotNames(cl)){
+        tmp <- slot(x,i)
+        ## Skipping empty measures
+        ## this makes sense as you wont always model every measure
+        if(is.null(y[[i]])) next()
+
+        if(all(c("diskID","Zone") %in% colnames(y[[i]]))){
+            tmp <- cbind(tmp,y[[i]][,!colnames(y[[i]]) %in% c("diskID","Zone")])
+        } else {
+            tmp <- cbind(tmp,y[[i]][,!colnames(y[[i]]) %in% c("diskID","plot","pedigree","line","stem")])
+        }
+
+        slot(x,i)<-tmp
+    }
+    return(x)
+}
 ## setting light time points
 
 setTimePoints <- function(seed,timePoints){
@@ -256,14 +286,15 @@ setStartPoints <- function(seed,start){
         if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
             df<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
             df$variable <- type[1]
-            df<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
-                                        each=nrow(dat)))
+            time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")]))),
+                        each=nrow(dat))
+            df<-data.frame(df, time=time)
         } else {
 
             df<- melt(dat,id.vars= c("diskID","Zone"))
             df$variable <- type[1]
-            df<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
-                                        each=nrow(dat)))
+            time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","Zone")]))),each=nrow(dat))
+            df<-data.frame(df, time=time)
         }
 
 
@@ -276,14 +307,16 @@ setStartPoints <- function(seed,start){
             if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
                 tmp<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
                 tmp$variable <- type[1]
-                tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
-                                            each=nrow(dat)))
+                time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")]))),
+                            each=nrow(dat))
+                tmp<-data.frame(tmp, time=time)
             } else {
 
                 tmp<- melt(dat,id.vars= c("diskID","Zone"))
                 tmp$variable <- type[1]
-                tmp<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
-                                            each=nrow(dat)))
+                time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","Zone")]))),each=nrow(dat))
+                tmp<-data.frame(tmp, time=time)
+
             }
 
             df[[i]]<-tmp
@@ -297,14 +330,16 @@ setStartPoints <- function(seed,start){
             if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
                 tmp<- melt(dat,id.vars= c("diskID","plot","pedigree","line","stem"))
                 tmp$variable <- type[1]
-                tmp<-data.frame(tmp, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")])),
-                                              each=nrow(dat)))
+                time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")]))),
+                            each=nrow(dat))
+
+                tmp<-data.frame(tmp, time=time)
             } else {
 
                 tmp<- melt(dat,id.vars= c("diskID","Zone"))
                 tmp$variable <- type[1]
-                tmp<-data.frame(df, time=rep(seq_len(ncol(dat[,!colnames(dat) %in% c("diskID","Zone")])),
-                                             each=nrow(dat)))
+                time <- rep(seq_len(ncol(data.frame(dat[,!colnames(dat) %in% c("diskID","Zone")]))),each=nrow(dat))
+                tmp<-data.frame(tmp, time=time)
             }
 
             df[[i]]<-tmp
@@ -335,4 +370,19 @@ setStartPoints <- function(seed,start){
 
     dip <- dip[mat,"OverCompTime"]
     return(dip)
+}
+
+
+.orderModels <- function(models){
+    mType <- names(models)
+    template <- vector("list",unique(sapply(models, length)))
+    for(i in seq_along(template)){
+        template[[i]] <- vector("list",length(models))
+        names(template[[i]]) <-mType
+        for(j in seq_along(models)){
+            template[[i]][[j]] <- models[[j]][[i]]
+        }
+    }
+    return(template )
+
 }

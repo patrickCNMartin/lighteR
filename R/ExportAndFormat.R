@@ -16,57 +16,10 @@
 
 ###### filtering functions
 
-#### clean this shit up over the week end make it pretty and robust
+
 
 
 ## merging filtered disks
-
-mergeFilteredDisks <- function(df1, df2){
-    tag1<-names(df1[[1]])
-    tag2<-names(df2[[1]])
-
-    merged <-vector("list", length(df1))
-    names(merged)<-names(df1)
-    merged <-lapply(merged,function(x,tag1,tag2){
-                    common<-match(tag1,tag2)
-                    diff<-c(match(tag1,tag2),match(tag2,tag1))
-                    x<-vector("list", sum(!is.na(common))+sum(is.na(diff)))
-                    names(x)<-c(tag1[!is.na(common)],tag1[is.na(common)],tag2[is.na(match(tag2,tag1))])
-                    return(x)
-                  },tag1=tag1,tag2=tag2)
-
-    ## merging
-    for(i in seq_along(merged)){
-        locNames<-names(merged[[i]])
-        for(j in seq_along(merged[[i]])){
-            tmp1<-grep(locNames[j],tag1)
-            tmp2<-grep(locNames[j],tag2)
-
-            if(length(tmp1)>0 & length(tmp2)>0){
-                #print(paste("i=",i,"j=",j,"binding"))
-                merged[[i]][[j]]<-rbind(df1[[i]][[tmp1]],df2[[i]][[tmp2]])
-                merged[[i]][[j]]<-cbind(merged[[i]][[j]][,1:5],
-                                        "filterStep"=rep("merged",nrow(merged[[i]][[j]])),
-                                        merged[[i]][[j]][,6:ncol(merged[[i]][[j]])])
-            }else if(length(tmp1)>0 & length(tmp2)==0){
-              #print(paste("i=",i,"j=",j,"premod"))
-                merged[[i]][[j]]<-df1[[i]][[tmp1]]
-                merged[[i]][[j]]<-cbind(merged[[i]][[j]][,1:5],
-                                        "filterStep"=rep("predMod",nrow(merged[[i]][[j]])),
-                                        merged[[i]][[j]][,6:ncol(merged[[i]][[j]])])
-
-            }else if(length(tmp1)==0 & length(tmp2)>0){
-              #print(paste("i=",i,"j=",j,"postmod"))
-               merged[[i]][[j]]<-df2[[i]][[tmp2]]
-               merged[[i]][[j]]<-cbind(merged[[i]][[j]][,1:5],
-                                       "filterStep"=rep("postMod",nrow(merged[[i]][[j]])),
-                                       merged[[i]][[j]][,6:ncol(merged[[i]][[j]])])
-
-            }
-        }
-    }
-    return(merged)
-}
 
 
 ### finalising export function
