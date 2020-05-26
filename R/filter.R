@@ -69,7 +69,7 @@
     return(cor(x,y,method="spearman")^2)
 }
 .intMSE<-function(gp,chip){
-    mse <- sum((1/length(gp))*(gp-chip)^2)
+    mse <- (1/length(gp)* sum((gp-chip)^2))
     return(mse)
 }
 
