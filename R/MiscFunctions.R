@@ -376,7 +376,12 @@ setStartPoints <- function(seed,start){
 
 
     } else if(fit.to[1]=="medianPlant"){
+        if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
+            dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")] <- apply(dat[,!colnames(dat) %in% c("diskID","plot","pedigree","line","stem")],2,mean)
 
+        }else{
+            dat[,!colnames(dat) %in% c("diskID","Zone")] <- apply(dat[,!colnames(dat) %in% c("diskID","Zone")],2,mean)
+        }
         df<- vector("list", nrow(dat))
         for(i in seq_along(df)){
             if(any(colnames(dat) %in% c("plot","pedigree","line","stem"))){
@@ -398,7 +403,7 @@ setStartPoints <- function(seed,start){
         }
 
 
-        df<-.setMedian(df)
+        #df<-.setMedian(df)
 
     } else {
         stop("fit.to should be one of the following: plant, allPlants, medianPlant")
@@ -454,7 +459,7 @@ setStartPoints <- function(seed,start){
 }
 
 
-.generateOrigin <- function(origin,mType,measure,template){
+.generateOrigin <- function(origin,mType,measure,template,Nmod){
     for(i in seq_along(measure)){
         tmp <- slot(origin, measure[i])
 
@@ -465,7 +470,7 @@ setStartPoints <- function(seed,start){
 
         for(ori in seq_along(tmp)){
 
-            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",ori)),1,sum) <sum(!grepl("No",mType))
+            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",ori)),1,sum) <Nmod
             if(all(tmpSub==FALSE)){
                 tmp[[ori]] <- NA
             } else {
@@ -483,7 +488,7 @@ setStartPoints <- function(seed,start){
 }
 
 
-.modelSub <- function(model,mType,measure,template){
+.modelSub <- function(model,mType,measure,template,Nmod){
     retMod <- new("retained.models")
     for(i in seq_along(measure)){
         tmp <- slot(model, measure[i])
@@ -495,7 +500,7 @@ setStartPoints <- function(seed,start){
 
         for(mod in seq_along(tmp)){
 
-            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",mod)),1,sum) <sum(!grepl("No",mType))
+            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",mod)),1,sum) <Nmod
             if(all(tmpSub==FALSE)){
                 tmp[[mod]] <- NA
             } else {

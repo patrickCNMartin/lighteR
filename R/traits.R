@@ -101,9 +101,18 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
             #browser()
             template <- lapply(template, function(tmp){
                                 if(!is.null(tmp)){
+                                    nmax <-range(unique(unlist(sapply(tmp, function(x)sapply(x,length)))))
 
-                                    tmp <- suppressWarnings(lapply(tmp,function(x)do.call("rbind",matrix(x,ncol=length(x)))))
+                                    tmp <- suppressWarnings(lapply(tmp,function(x){
 
+                                        do.call("rbind",matrix(x,ncol=length(x)))
+                                        }))
+
+                                    for(i in seq_along(tmp)){
+                                        if(ncol(tmp[[i]])== min(nmax)){
+                                            tmp[[i]]<- cbind(tmp[[i]],rep(NA,max(nmax)-min(nmax)))
+                                        }
+                                    }
                                     tmp <- do.call("rbind", tmp)
                                     return(as.data.frame(tmp))
                                 }else{
@@ -211,8 +220,8 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
         dip <- .quickSelect(trait,zone)
 
         ### Taking care of weird over comp times
-        overcomp <-(time[1]+1) + dip
-        overcomp2 <-(time[1]+1) + dip +1
+        overcomp <-(time[1]+1) + median(dip)
+        overcomp2 <-(time[1]+1) + median(dip) +1
 
         overcomp[overcomp >time[2]] <- time[2]
         overcomp2[overcomp2 >time[2]] <- time[2]
@@ -245,7 +254,8 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
 
 
     } else {
-
+        timeLoc$OverCompTime <- median(timeLoc$OverCompTime)
+        timeLoc$OverCompTime.1 <- median(timeLoc$OverCompTime)+1
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
 
         tag <- split(tag, seq(nrow(tag)))

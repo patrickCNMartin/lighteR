@@ -155,26 +155,36 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
         tmpMod <- slot(m,measure[i])
         if(length(tmpMod) ==0) next()
 
-        tloc <- c(1,0)
+
         for(ori in seq_along(tmp)){
           datInt <- tmp[[ori]][,!colnames(tmp[[ori]]) %in% c("diskID","pedigree","line","stem")]
+          tag <- tmp[[ori]][,colnames(tmp[[ori]]) %in% c("diskID","pedigree","line","stem")]
+          tag <- apply(tag,1,paste, collapse ="")
+          tag <- gsub(" ","",tag)
+          tag <- gsub("missing","", tag )
           x <- rep(seq(1,ncol(datInt)),nrow(datInt))
           y <- as.vector(as.matrix(t(datInt)))
           plot(x,y,xlim=c(1,ncol(datInt)), ylim=c(0,1),
                xlab ="Time Points", ylab = measure[i], main = names(tmp)[ori],
                pch =19 , col = "#03a5fc")
 
-          tloc[2] <- tloc[2] + nrow(datInt)
-          loc <- unique(apply(tmpMod,1,function(x)grep("fitted",x)))
+          traittag <- tmpMod[,colnames(tmpMod) %in% c("diskID","Zone")]
+          traittag <-apply(traittag,1,paste, collapse="")
+          traittag <- gsub(" ","",traittag)
+          names(traittag)<- NULL
+          modReorder <- tmpMod[match(tag,traittag),]
+          loc <- unique(apply(modReorder,1,function(x)grep("fitted",x)))
 
 
-          modInt <- tmpMod[seq(tloc[1],tloc[2]),seq(loc+1,ncol(tmpMod))]
+
+
+          modInt <- tmpMod[,seq(loc+1,ncol(tmpMod))]
           for(row in seq_len(nrow(modInt))){
             mx <-seq(1,ncol(modInt))
             my <-as.numeric(as.vector(as.matrix(modInt[row,])))
             lines(mx,my,col="#d65011",lwd=1.6)
           }
-          tloc[1] <- tloc[1] +nrow(datInt)
+
         }
       }
     }else if(!is.origin.empty & !is.retain.empty & !is.traits.empty & !is.retained.models.empty){
@@ -186,20 +196,30 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
         if(length(tmp) ==0) next()
         tmpMod <- slot(m,measure[i])
         if(length(tmpMod) ==0) next()
-        tloc <- c(1,0)
+
         for(ori in seq_along(tmp)){
-          datInt <- tmp[[ori]][,!colnames(tmp[[ori]]) %in% c("diskID","pedigree","line","stem")]
+          datInt <- tmp[[ori]][,!colnames(tmp[[ori]]) %in% c("diskID","plot","pedigree","line","stem")]
+          tag <- tmp[[ori]][,colnames(tmp[[ori]]) %in% c("diskID","plot","pedigree","line","stem")]
+          tag <- apply(tag,1,paste, collapse ="")
+          tag <- gsub(" ","",tag)
+          tag <- gsub("missing","", tag )
+          names(tag) <- NULL
           x <- rep(seq(1,ncol(datInt)),nrow(datInt))
           y <- as.vector(as.matrix(t(datInt)))
           plot(x,y,xlim=c(1,ncol(datInt)), ylim=c(0,1),
                xlab ="Time Points", ylab = measure[i], main = names(tmp)[ori],
                pch =19 , col = "#03a5fc")
 
-          tloc[2] <- tloc[2] + nrow(datInt)
-          loc <- unique(apply(tmpMod,1,function(x)grep("fitted",x)))
+          traittag <- tmpMod[,colnames(tmpMod) %in% c("diskID","Zone")]
+          traittag <-apply(traittag,1,paste, collapse="")
+          traittag <- gsub(" ","",traittag)
+          names(traittag)<- NULL
+          modReorder <- tmpMod[match(tag,traittag),]
+          loc <- unique(apply(modReorder,1,function(x)grep("fitted",x)))
 
 
-          modInt <- tmpMod[seq(tloc[1],tloc[2]),seq(loc+1,ncol(tmpMod))]
+          modInt <- modReorder[,seq(loc+1,ncol(modReorder))]
+
           for(row in seq_len(nrow(modInt))){
               mx <-seq(1,ncol(modInt))
               my <-as.numeric(as.vector(as.matrix(modInt[row,])))
@@ -207,7 +227,7 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
           }
 
 
-          tloc[1] <- tloc[1] +nrow(datInt)
+
         }
       }
     } else if(dropped){

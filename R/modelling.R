@@ -30,7 +30,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         time <- c(40,80)
     }
     ## setting data
-    if(sum(unlist(slotApply(seed@origin, length)))==0){
+    if(sum(unlist(.slotApply(seed@origin, length)))==0){
         message("Empty Origin slot - samples will be modelled individually")
         if(sum(unlist(.slotApply(seed@retain,length)))==0){
             plants <- seed@measures
@@ -83,10 +83,6 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             ### If - model length check
             if(names(models)[mod] != "NPQ" & length(modelsInternal$model)==3){
                 stop("Triple model set-up only supported for NPQ")
-            } else if(length(modelsInternal$model)==3 & fit.to[1]=="allPlants"){
-                stop("Triple model set-up cannot be applied to allPlants - Dip Points will differ! \n
-                     Select either plant or medianPlant")
-
             } else if(names(models)[mod] == "NPQ" & length(modelsInternal$model)==3){
 
                 ####################################################################
@@ -157,11 +153,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             ### If - model length check
             if(names(models)[mod] != "NPQ" & length(modelsInternal$model)==3){
                 stop("Triple model set-up only supported for NPQ")
-            } else if(length(modelsInternal$model)==3 & fit.to[1]=="allPlants"){
-                stop("Triple model set-up cannot be applied to allPlants - Dip Points will differ! \n
-                     Select either plant or medianPlant")
-
-            } else if(names(models)[mod] == "NPQ" & length(modelsInternal$model)==3){
+            }  else if(names(models)[mod] == "NPQ" & length(modelsInternal$model)==3){
 
                 #####################################################################
                 #####################################################################
@@ -580,6 +572,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
         for(mod in seq_along(model)){
             formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
+
             tmpFitted <- lapply(formattedChunk,function(chunk,fitParam,type){
                                         res<-tryCatch(.fitModel(chunk,fitParam,type),
                                         error = function(cond){

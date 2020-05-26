@@ -95,11 +95,17 @@
         zone <- apply(zone,1,paste,collapse="")
 
         dip <- .quickSelect(trait,zone)
+        ### Taking care of weird over comp times
+        overcomp <-(time[1]+1) + median(dip)
+        overcomp2 <-(time[1]+1) + median(dip) +1
+
+        overcomp[overcomp >time[2]] <- time[2]
+        overcomp2[overcomp2 >time[2]] <- time[2]
         timeLoc <- data.frame("startHighLight" = rep(1,nrow(seed)),
                               "endHighLight" = rep(time[1],nrow(seed)),
                               "startLowLight" = rep(time[1]+1, nrow(seed)),
-                              "OverCompTime" = (time[1]+1) + dip,
-                              "OverCompTime" = (time[1]+2) + dip,
+                              "OverCompTime" = overcomp,
+                              "OverCompTime" = overcomp2,
                               "endLowLight" = rep(time[2],nrow(seed)))
 
     } else {
@@ -191,8 +197,8 @@
 
         dip <- .quickSelect(trait,zone)
         ### Taking care of weird over comp times
-        overcomp <-(time[1]+1) + dip
-        overcomp2 <-(time[1]+1) + dip +1
+        overcomp <-(time[1]+1) + median(dip)
+        overcomp2 <-(time[1]+1) + median(dip) +1
 
         overcomp[overcomp >time[2]] <- time[2]
         overcomp2[overcomp2 >time[2]] <- time[2]
@@ -220,6 +226,7 @@
 
 
         seed <- split(seed, seq(nrow(seed)))
+
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
 
 
@@ -400,7 +407,12 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                 stop("Unkown model selection method - Select from MSE or RSS")
             }
         }
-
+        ### checking min length for template creation
+        if(length(measure)<=sum(!grepl("No",modelType))){
+            Nmod <-length(measure)
+        } else {
+            Nmod <-sum(!grepl("No",modelType))
+        }
         ### Subsetting
         ## Checking if origin is empty again
         is.retain.empty <- sum(unlist(.slotApply(seed@retain, length)))==0
@@ -421,10 +433,12 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                         return(NULL)
                     }})
             tempTag <- apply(do.call("cbind",tempTag),1,unique)
-            template <- !apply(do.call("cbind",templ),1,sum) < sum(!grepl("No",modelType))
+
+
+            template <- !apply(do.call("cbind",templ),1,sum) < Nmod
         } else {
 
-            template <- !apply(do.call("cbind",template),1,sum) < sum(!grepl("No",modelType))
+            template <- !apply(do.call("cbind",template),1,sum) < Nmod
         }
 
         ## This is not great but if will have to do for now
@@ -470,8 +484,8 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
 
             seed@retained.models <- .slotAssign(seed@retained.models,models)
         } else {
-            seed@retained.models <- .modelSub(seed@models,modelType,measure,tempSub)
-            seed@origin <-.generateOrigin(seed@origin,modelType,measure,tempSub)
+            seed@retained.models <- .modelSub(seed@models,modelType,measure,tempSub,Nmod)
+            seed@origin <-.generateOrigin(seed@origin,modelType,measure,tempSub,Nmod)
 
         }
 
