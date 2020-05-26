@@ -56,8 +56,22 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
     is.models.empty <- sum(unlist(.slotApply(seed@models, length))) == 0
     is.retained.models.empty <- sum(unlist(.slotApply(seed@retained.models, length))) == 0
 
+    if(dropped){
+      d <- seed@dropped
 
-    if(is.origin.empty & is.retain.empty & is.models.empty & is.retained.models.empty ){
+
+      for(i in seq_along(measure)){
+        tmp <- slot(d,measure[i])
+        if(length(tmp) ==0) next()
+        tag <- tmp$Zone
+        tmp <- tmp[,!colnames(tmp) %in% c("diskID","Zone")]
+
+        for(r in seq_len(nrow(tmp))){
+          plot(seq_len(ncol(tmp)), tmp[r,],xlim=c(1,ncol(tmp)),
+               ylim=c(0,1),xlab ="Time Points", ylab = measure[i], main = tag[r],pch =19 , col = "#03a5fc")
+        }
+      }
+    }else if(is.origin.empty & is.retain.empty & is.models.empty & is.retained.models.empty ){
          d <- seed@measures
 
          for(i in seq_along(measure)){
@@ -69,7 +83,7 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
             for(r in seq_len(nrow(tmp))){
                 plot(seq_len(ncol(tmp)), tmp[r,],xlim=c(1,ncol(tmp)),
                      ylim=c(0,1),xlab ="Time Points", ylab = measure[i],
-                     pch =19 , col = "#03a5fc")
+                     pch =19 , col = "#03a5fc", main = tag[r])
             }
          }
     } else if(is.origin.empty & !is.retain.empty & is.models.empty &is.retained.models.empty){
@@ -228,20 +242,6 @@ plotSeed <- function(seed,measure=c("NPQ","EF","XE","OE"),dropped=FALSE){
 
 
 
-        }
-      }
-    } else if(dropped){
-      d <- seed@dropped
-
-      for(i in seq_along(measure)){
-        tmp <- slot(d,measure[i])
-        if(length(tmp) ==0) next()
-        tag <- tmp$Zone
-        tmp <- tmp[,!colnames(tmp) %in% c("diskID","Zone")]
-
-        for(r in seq_len(nrow(tmp))){
-          plot(seq_len(ncol(tmp)), tmp[r,],xlim=c(1,ncol(tmp)),
-               ylim=c(0,1),xlab ="Time Points", ylab = measure[i])
         }
       }
     }

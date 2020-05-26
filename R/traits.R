@@ -254,8 +254,7 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
 
 
     } else {
-        timeLoc$OverCompTime <- median(timeLoc$OverCompTime)
-        timeLoc$OverCompTime.1 <- median(timeLoc$OverCompTime)+1
+
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
 
         tag <- split(tag, seq(nrow(tag)))
