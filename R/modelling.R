@@ -9,6 +9,13 @@
 ################################################################################
 ################################################################################
 
+#' Extract measures from seed object
+#'
+#' @param seed a seed object
+#' @param models list containing the name of the measure and the models to be run on data - Triple model only available for NPQ
+#' @param fit.to describes how the data should be fitted ("plant","allPlants","medianPlant")
+#' @param cores number of cores used for selecting plants
+#' @return Seed object with computed models
 modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plant","allPlants","medianPlant"), cores=1){
     ## putting in the model types used
     for( i in seq_along(models)){
@@ -25,16 +32,37 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     ## setting data
     if(sum(unlist(slotApply(seed@origin, length)))==0){
         message("Empty Origin slot - samples will be modelled individually")
-        if(sum(unlist(slotApply(seed@retain,length)))==0){
+        if(sum(unlist(.slotApply(seed@retain,length)))==0){
             plants <- seed@measures
+            ########
+
 
         }else {
             plants <- seed@retain
+            ####
+
         }
+        plantID <- vector("list", length(slotNames(class(plants))))
+        sn <- slotNames(class(plants))
+        names(plantID) <- sn
+
+        for(i in seq_along(plantID)){
+            p <- slot(plants,sn[i])
+
+            p <- p[,colnames(p) %in% c("diskID","Zone")]
+            p <- apply(p,1,paste, collapse="")
+            p <- gsub(" ","",p)
+            names(p) <- NULL
+            plantID[[i]] <- p
+        }
+
+
         origin <- FALSE
 
     } else {
         plants <- seed@origin
+
+
         origin <- TRUE
     }
 
@@ -47,6 +75,8 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             ### No format conversion
             ## setting up modelling
             measure <- slot(plants,names(models)[mod])
+
+
 
 
             modelsInternal <- .dispatchModel(models[[mod]],seed@meta.param@nlsrStart)
@@ -62,14 +92,14 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 ####################################################################
                 #####################################################################
                 ## Check if Traits have been computed
-                if(sum(unlist(slotApply(seed@traits, nrow)))==0){
+                if(sum(unlist(.slotApply(seed@traits, nrow)))==0){
                     stop("Traits have not yet been computed - use getTraits function first")
                 } else {
                 #browser()
                     dip <- seed@traits@NPQ$OverCompTime
 
 
-                    time <- data.frame("startHighLight" = rep(1,nrow(measure)),
+                    timeFrame <- data.frame("startHighLight" = rep(1,nrow(measure)),
                                        "endHighLight" = rep(time[1],nrow(measure)),
                                        "startLowLight" = rep(time[1]+1, nrow(measure)),
                                        "OverCompTime" = (time[1]+1) + dip,
@@ -77,17 +107,22 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                                        )
                     ## Removing bad measures
                     ## This will be filtered later anyway
-                    time$OverCompTime[time$OverCompTime >time$endLowLight] <- time$endLowLight[time$OverCompTime >time$endLowLight]
+                    timeFrame$OverCompTime[timeFrame$OverCompTime
+                                           >timeFrame$endLowLight] <- timeFrame$endLowLight[timeFrame$OverCompTime
+                                                                                            >timeFrame$endLowLight]
 
-                    timeSplit <- .splitDfs(time,cores)
+
+                    timeSplit <- .splitDfs(timeFrame,cores)
                 #browser()
                     measure <- .splitDfs(measure,cores)
                     tmp<- mcmapply(.applyTripleModelFit,chunk=measure,timeSplit=timeSplit,
                                               MoreArgs = list(modelsInternal = modelsInternal, fit.to = "plant"),
                                               SIMPLIFY = FALSE,mc.cores = cores)
 
-                    models[[mod]] <- unlist(tmp, recursive = FALSE)
-                    #models[[mod]] <-tmp
+                    tmp <- unlist(tmp, recursive = FALSE)
+
+                    names(tmp) <- plantID[[names(models)[mod]]]
+                    models[[mod]] <-tmp
                 }
                 #####################################################################
                 #####################################################################
@@ -95,12 +130,16 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 #####################################################################
                 #####################################################################
                 ## Two models or less
+
+
                 measure <- .splitDfs(measure,cores)
 
                 tmp <- mclapply(measure,.applyModelFit,time =time,
                                         modelsInternal = modelsInternal,fit.to = "plant",
                                         mc.cores = cores)
-                #models[[mod]] <- unlist(tmp,recursive = FALSE)
+                tmp <- unlist(tmp,recursive = FALSE)
+
+                names(tmp)<- plantID[[names(models)[mod]]]
                 models[[mod]] <-tmp
             }
             #####################################################################
@@ -114,6 +153,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
 
             modelsInternal <- .dispatchModel(models[[mod]],seed@meta.param@nlsrStart)
+
             ### If - model length check
             if(names(models)[mod] != "NPQ" & length(modelsInternal$model)==3){
                 stop("Triple model set-up only supported for NPQ")
@@ -126,7 +166,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
                 #####################################################################
                 #####################################################################
                 ## Check if Traits have been computed
-                if(sum(unlist(slotApply(seed@traits, nrow)))==0){
+                if(sum(unlist(.slotApply(seed@traits, nrow)))==0){
                     stop("Traits have not yet been computed - use getTraits function first")
                 } else {
 
@@ -151,10 +191,18 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
             }
             #####################################################################
             #####################################################################
+
         }
 
 
     }
+    #####################################################################
+    #####################################################################
+    if(origin){
+
+        models <- lapply(models, .orderModels)
+    }
+
     #####################################################################
     #####################################################################
     ## Done
@@ -427,6 +475,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         tag <- chunk[, colnames(chunk) %in%  c("diskID","Zone")]
         chunk<-chunk[, !colnames(chunk) %in%  c("diskID","Zone")]
     }
+
     ## further chunking
     fitted<-vector("list",nrow(chunk))
     for(row in seq_len(nrow(chunk))){
@@ -460,6 +509,9 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     zone <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
     measure<-measure[,!colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
     tag <- zone
+    plantID <- apply(tag,1, paste,collapse="")
+    plantID <- gsub(" ","",plantID)
+    plantID<- gsub("missing","",plantID)
     zone <- apply(zone,1,paste,collapse="")
 
     dip <- .quickSelect(dip,zone)
@@ -502,10 +554,12 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
             for(mod in seq_along(model)){
                 formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
-                fittedModel[[mod]] <- tryCatch(.fitModel(formattedChunk,fitParam = start[[mod]],type = model[[mod]]),
+                tmpFitted <- tryCatch(.fitModel(formattedChunk,fitParam = start[[mod]],type = model[[mod]]),
                                                 error = function(cond){
                                                 return(NA)
                                                 })
+                names(tmpFitted) <- plantID
+                fittedModel[[mod]] <- tmpFitted
             }
             fitted[[row]] <- fittedModel
         }
@@ -526,16 +580,15 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
 
         for(mod in seq_along(model)){
             formattedChunk <- .formatConversion(NewChunk[[mod]],fit.to = fit.to)
-            fittedModel[[mod]] <- lapply(formattedChunk,function(chunk,fitParam,type){
+            tmpFitted <- lapply(formattedChunk,function(chunk,fitParam,type){
                                         res<-tryCatch(.fitModel(chunk,fitParam,type),
                                         error = function(cond){
-                                                return(na)
+                                                return(NA)
                                                 })
                                         return(res)
                                     },fitParam = start[[mod]],type = model[[mod]])
-            #error = function(cond){
-            #   return(NA)
-            #})
+            names(tmpFitted) <- plantID
+            fittedModel[[mod]] <- tmpFitted
         }
         fitted <- fittedModel
 
@@ -550,6 +603,9 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     model <- modelsInternal$model
 
     tag <- measure[,colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
+    plantID <- apply(tag,1, paste,collapse="")
+    plantID <- gsub(" ","",plantID)
+    plantID<- gsub("missing","",plantID)
     measure<-measure[,!colnames(measure) %in% c("diskID","plot","pedigree","line","stem")]
 
     ## further chunking
@@ -573,14 +629,15 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
         }
 
 
-        fittedModel[[mod]] <- lapply(formattedChunk,function(chunk,fitParam,type){
+        tmpFitted <- lapply(formattedChunk,function(chunk,fitParam,type){
                                     res<-tryCatch(.fitModel(chunk,fitParam,type),
                                                     error = function(cond){
-                                                    return(na)
+                                                    return(NA)
                                                     })
                                     return(res)
                             },fitParam = start[[mod]],type = model[[mod]])
-
+        names(tmpFitted) <- plantID
+        fittedModel[[mod]] <- tmpFitted
     }
     fitted <- fittedModel
 

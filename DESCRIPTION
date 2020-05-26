@@ -3,10 +3,13 @@ Type: Package
 Title: Analysis of light Response data from FluorImage
 Version: 0.1.0
 Author: Patrick C.N. Martin
-Maintainer: patrick.martin@bric.ku.dk
+Maintainer: Patrick CN Martin <patrick.martin@bric.ku.dk>
 Description: Using output from fluorImager software, lighteR
-loads, clean and splits data for modelling. Models data using various different models.
-Also you can do some neat plots
-License: What license is it under?
+    loads, cleans and splits data for modelling. Models data using various different models.
+    Also you can do some neat plots.
+License: GPL-3
+Depends: R (>= 3.5.0), parallel,MASS,reshape2,nlsr,betareg
 Encoding: UTF-8
 LazyData: true
+VignetteBuilder: knitr
+RoxygenNote: 7.1.0

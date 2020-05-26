@@ -149,7 +149,7 @@
     return(list("seed.meta.data" = seed.meta.data,"roots"=roots))
 }
 
-slotApply <- function(x,FUN,...){
+.slotApply <- function(x,FUN,...){
     cl <- class(x)
     result <- list()
     for(i in slotNames(cl)){
@@ -158,7 +158,20 @@ slotApply <- function(x,FUN,...){
     result
 }
 
-slotExtractParam <- function(x,FUN,time){
+.slotUnlist <- function(x){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+        if(length(slot(x,i))==1){
+            result[[i]] <- slot(x,i)[[1]]
+        } else {
+            next()
+        }
+    }
+    result
+}
+
+.slotExtractParam <- function(x,FUN,time){
     cl <- class(x)
     result <- list()
     for(i in slotNames(cl)){
@@ -167,7 +180,7 @@ slotExtractParam <- function(x,FUN,time){
     result
 }
 
-slotAssign <- function(x,y){
+.slotAssign <- function(x,y){
     cl <- class(x)
 
     for(i in slotNames(cl)){
@@ -177,7 +190,7 @@ slotAssign <- function(x,y){
     return(x)
 }
 
-slotSubset <- function(x,dim =1,template){
+.slotSubset <- function(x,dim =1,template){
     cl <- class(x)
     result <- list()
     for(i in slotNames(cl)){
@@ -192,18 +205,44 @@ slotSubset <- function(x,dim =1,template){
     }
     result
 }
-slotListSub<- function(x,template){
+
+.slotSubsetWithTag <- function(x,template,tag){
     cl <- class(x)
     result <- list()
     for(i in slotNames(cl)){
+            tmp <-slot(x,i)
 
-            result[[i]] <- slot(x,i)[[template]]
+            tagInt <- tmp[,colnames(tmp) %in% c("diskID","Zone")]
+            tagInt <- apply(tagInt,1,paste, collapse ="")
+            tagInt <- gsub(" ","",tagInt)
+            names(tagInt) <- NULL
+            names(tag)<- NULL
+            reorder <- match(tag,tagInt)
+            tmp <- tmp[reorder,]
+            result[[i]] <-tmp[template,]
+
+
+
+    }
+    result
+}
+.slotListSub<- function(x,template){
+    cl <- class(x)
+    result <- list()
+    for(i in slotNames(cl)){
+            if(length(slot(x,i))!=0){
+                tmp <-slot(x,i)
+                result[[i]] <- tmp[template]
+            } else {
+                result[[i]] <- NULL
+            }
+
     }
     result
 }
 
 
-slotCombine <- function(x,y){
+.slotCombine <- function(x,y){
     cl <- class(x)
 
     for(i in slotNames(cl)){
@@ -215,19 +254,21 @@ slotCombine <- function(x,y){
 }
 
 
-slotAddTraits <- function(x,y){
+.slotAddTraits <- function(x,y){
     cl <- class(x)
 
     for(i in slotNames(cl)){
         tmp <- slot(x,i)
+
         ## Skipping empty measures
         ## this makes sense as you wont always model every measure
         if(is.null(y[[i]])) next()
 
-        if(all(c("diskID","Zone") %in% colnames(y[[i]]))){
-            tmp <- cbind(tmp,y[[i]][,!colnames(y[[i]]) %in% c("diskID","Zone")])
-        } else {
-            tmp <- cbind(tmp,y[[i]][,!colnames(y[[i]]) %in% c("diskID","plot","pedigree","line","stem")])
+        if(sum(c("V1","V2","V3","V4","V5") %in% colnames(y[[i]]))==5){
+            tmp <- cbind(tmp,y[[i]][,seq(6,ncol(y[[i]]))])
+
+        } else if(sum(c("V1","V2","V3","V4","V5") %in% colnames(y[[i]]))==2){
+            tmp <- cbind(tmp,y[[i]][,seq(3,ncol(y[[i]]))])
         }
 
         slot(x,i)<-tmp
@@ -236,6 +277,11 @@ slotAddTraits <- function(x,y){
 }
 ## setting light time points
 
+#' Set Time points used in fluorImage analysis
+#'
+#' @param seed A seed object
+#' @param timePoints a numeric vector containing end points of different light regimes
+#' @return returns a seed object with updated time points
 setTimePoints <- function(seed,timePoints){
     #time <- new("time")
     seed@meta.param@timePoints <- timePoints
@@ -244,6 +290,12 @@ setTimePoints <- function(seed,timePoints){
 }
 
 ## set Starting gumbel
+
+#' Set Time points used in fluorImage analysis
+#'
+#' @param seed A seed object
+#' @param start a list containing starting values for gumbel optimisation. Please name your list elements a,b, and c
+#' @return returns a seed object with updated start points
 setStartPoints <- function(seed,start){
     #time <- new("time")
     seed@meta.param@nslrStart <- start
@@ -361,28 +413,187 @@ setStartPoints <- function(seed,start){
     ## Dirty stuff
     tag <- gsub(" ","", tag)
     tag <- gsub("missing","", tag)
+    names(tag) <- NULL
     ## Dirty zone
     zone <-gsub(" ","", zone)
     zone <- gsub("missing","", zone)
+    names(zone) <- NULL
     ## matching
 
     mat <- match(zone,tag)
+    if(any(is.na(mat)))browser()
 
-    dip <- dip[mat,"OverCompTime"]
+    dip <- dip[mat[!is.na(mat)],"OverCompTime"]
     return(dip)
 }
 
 
 .orderModels <- function(models){
-    mType <- names(models)
-    template <- vector("list",unique(sapply(models, length)))
+
+    mType <- unique(as.vector(sapply(models, names)))
+
+    template <- vector("list",length(models))
+    names(template)<- names(models)
+
     for(i in seq_along(template)){
-        template[[i]] <- vector("list",length(models))
-        names(template[[i]]) <-mType
-        for(j in seq_along(models)){
-            template[[i]][[j]] <- models[[j]][[i]]
+        template[[i]] <- vector("list",unique(sapply(models[[i]],length)))
+        names(template[[i]]) <- lapply(models[[i]],names)[[1]]
+
+        for(j in seq_along(template[[i]])){
+            template[[i]][[j]] <- vector("list", length(models[[i]]))
+            names(template[[i]][[j]]) <- names(models[[i]])
+
+            for(k in seq_along(models[[i]])){
+                template[[i]][[j]][[k]] <- models[[i]][[k]][[j]]
+            }
         }
+
     }
     return(template )
 
+}
+
+
+.generateOrigin <- function(origin,mType,measure,template){
+    for(i in seq_along(measure)){
+        tmp <- slot(origin, measure[i])
+
+
+        if(any(mType[[measure[i]]]=="No")){
+            next()
+        }
+
+        for(ori in seq_along(tmp)){
+
+            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",ori)),1,sum) <sum(!grepl("No",mType))
+            if(all(tmpSub==FALSE)){
+                tmp[[ori]] <- NA
+            } else {
+                tmp[[ori]]<- tmp[[ori]][tmpSub,]
+            }
+
+        }
+        tmp <- tmp[!is.na(tmp)]
+        slot(origin,measure[i])<-tmp
+
+    }
+
+
+    return(origin)
+}
+
+
+.modelSub <- function(model,mType,measure,template){
+    retMod <- new("retained.models")
+    for(i in seq_along(measure)){
+        tmp <- slot(model, measure[i])
+
+
+        if(any(mType[[measure[i]]]=="No")){
+            next()
+        }
+
+        for(mod in seq_along(tmp)){
+
+            tmpSub <- !apply(do.call("cbind",lapply(template,"[[",mod)),1,sum) <sum(!grepl("No",mType))
+            if(all(tmpSub==FALSE)){
+                tmp[[mod]] <- NA
+            } else {
+                tmp[[mod]]<- tmp[[mod]][tmpSub]
+            }
+
+        }
+
+        tmp <- tmp[!is.na(tmp)]
+
+        slot(retMod,measure[i])<-tmp
+
+    }
+
+
+    return(retMod)
+}
+
+
+
+.convertTime<-function(data,imageData){
+    if(length(grep("Image",names(imageData)))==0){
+        stop("No Image data loaded - batchLoading type should be set to all or image")
+    }else{
+        time<-lapply(imageData[["Image"]],function(x){
+            x<-x[[grep("OE",names(x))]]
+            time<-as.numeric(x$Time)
+            time<-time-min(time)
+            light<-as.numeric(x$PPFD)
+
+            return(list("time"=time,"light"=light))
+        })
+        names(time)<-gsub("ImageData","ZoneData",names(time))
+        if(all(names(data)%in%c("data","model"))){
+            locDat<-data[["data"]]
+            locMod<-data[["model"]]
+            for(i in seq_along(locDat)){
+                for(j in seq_along(locDat[[i]])){
+                    findTime<-match(as.character(locDat[[i]][[j]][,1]),names(time))
+                    localTime<-time[findTime]
+
+                    for(k in seq_along(localTime)){
+                        highLight <- localTime[[k]][["time"]][which(
+                            localTime[[k]][["light"]]==unique(localTime[[k]][["light"]])[1])]
+                        lowLight <- localTime[[k]][["time"]][which(
+                            localTime[[k]][["light"]]==unique(localTime[[k]][["light"]])[2])]
+                        locDat[[i]][[j]][k,"InductionTime"]<-highLight[locDat[[i]][[j]][k,"InductionTime"]]
+                        locDat[[i]][[j]][k,"OverCompTime"]<-lowLight[locDat[[i]][[j]][k,"OverCompTime"]]-lowLight[1]
+                        ## this is only when you have a very quick relation time based on other metrics
+                        ## this might not be ideal
+                        if(length(lowLight[locDat[[i]][[j]][k,"RelaxationTime"]]-lowLight[1])==0){
+                            locDat[[i]][[j]][k,"RelaxationTime"]<-0
+                        }else{
+                            locDat[[i]][[j]][k,"RelaxationTime"]<-lowLight[locDat[[i]][[j]][k,"RelaxationTime"]]-lowLight[1]
+                        }
+
+                        locDat[[i]][[j]][k,"startPlateau"]<-lowLight[locDat[[i]][[j]][k,"startPlateau"]]
+                        locDat[[i]][[j]][k,"endPlateau"]<-lowLight[locDat[[i]][[j]][k,"endPlateau"]]
+                        locDat[[i]][[j]][k,"stableLowLightTime"]<-lowLight[locDat[[i]][[j]][k,"stableLowLightTime"]]-lowLight[1]
+
+                    }
+
+                }
+            }
+
+            return(list("data"=locDat,"model"=locMod))
+
+        } else{
+            locDat<-data[["data"]]
+            for(i in seq_along(locDat)){
+                for(j in seq_along(locDat[[i]])){
+                    findTime<-match(as.character(locDat[[i]][[j]][,1]),names(time))
+                    localTime<-time[findTime]
+                    for(k in seq_along(localTime)){
+                        highLight <- localTime[[k]][["time"]][which(
+                            localTime[[k]][["light"]]==unique(localTime[[k]][["light"]])[1])]
+                        lowLight <- localTime[[k]][["time"]][which(
+                            localTime[[k]][["light"]]==unique(localTime[[k]][["light"]])[2])]
+                        locDat[[i]][[j]][k,"InductionTime"]<-highLight[locDat[[i]][[j]][k,"InductionTime"]]
+                        locDat[[i]][[j]][k,"OverCompTime"]<-lowLight[locDat[[i]][[j]][k,"OverCompTime"]]-lowLight[1]
+                        ## this is only when you have a very quick relation time based on other metrics
+                        ## this might not be ideal
+                        if(length(lowLight[locDat[[i]][[j]][k,"RelaxationTime"]]-lowLight[1])==0){
+                            locDat[[i]][[j]][k,"RelaxationTime"]<-0
+                        }else{
+                            locDat[[i]][[j]][k,"RelaxationTime"]<-lowLight[locDat[[i]][[j]][k,"RelaxationTime"]]-lowLight[1]
+                        }
+                        locDat[[i]][[j]][k,"startPlateau"]<-lowLight[locDat[[i]][[j]][k,"startPlateau"]]
+                        locDat[[i]][[j]][k,"endPlateau"]<-lowLight[locDat[[i]][[j]][k,"endPlateau"]]
+                        locDat[[i]][[j]][k,"stableLowLightTime"]<-lowLight[locDat[[i]][[j]][k,"stableLowLightTime"]]-lowLight[1]
+
+
+                    }
+
+
+                }
+            }
+        }
+        return(locDat)
+    }
 }

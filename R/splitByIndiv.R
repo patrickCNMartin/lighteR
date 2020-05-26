@@ -43,7 +43,12 @@
 
 }
 
-
+#' Extract measures from seed object
+#'
+#' @param seed a seed object
+#' @param splitby describes how data should be split ("plot","pedigree","line","stem")
+#' @param tagID tags associated with mapping data
+#' @return Seed object with split data
 
 
 getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
@@ -54,7 +59,7 @@ getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
     ### ADD split and extract function if needed
     ### It will still use the seed object just in case
 
-    if(sum(unlist(slotApply(seed@retain,length)))>0){
+    if(sum(unlist(.slotApply(seed@retain,length)))>0){
         measures <- seed@retain
 
     } else {
@@ -62,7 +67,7 @@ getOrigin <- function(seed,splitby=c("plot","pedigree","line","stem"),
     }
 
 
-    measures <- slotApply(measures,.extractByID,splitby=splitby,tagID=tagID)
+    measures <- .slotApply(measures,.extractByID,splitby=splitby,tagID=tagID)
     origin <- slotAssign(origin,measures)
     seed@origin <- origin
     seed@meta.param@originType <- splitby

@@ -22,7 +22,7 @@ setMethod("show",
               cat(paste(RootLengthZone,"Zone data file(s) stored in roots \n"))
               cat(paste(RootLengthImage,"Image data file(s) stored in roots \n"))
 
-              measures <- slotApply(object@measures, nrow)
+              measures <- .slotApply(object@measures, nrow)
 
               if(sum(unlist(measures))!=0){
                 cat("@measures \n")
@@ -32,7 +32,7 @@ setMethod("show",
                 cat(paste(measures["EF"], "sample(s) for EF \n"))
               }
               #origin <- slotApply(object@origin, function(origin){lapply(origin,length)})
-              origin <- slotApply(object@origin, length)
+              origin <- .slotApply(object@origin, length)
 
               if(sum(unlist(origin))>=1){
                   cat("@origins \n")
@@ -42,7 +42,7 @@ setMethod("show",
                   cat(paste(origin[["EF"]], "sample Origin(s) for EF \n"))
               }
 
-              traits <- slotApply(object@traits, nrow)
+              traits <- .slotApply(object@traits, nrow)
 
               if(sum(unlist(traits))>=1){
                   cat("@traits \n")
@@ -52,7 +52,7 @@ setMethod("show",
                   cat(paste("Traits extracted from",traits[["EF"]], "sample(s) in EF \n"))
               }
 
-              models <- slotApply(object@models, length)
+              models <- .slotApply(object@models, length)
               modelType<- object@meta.param@models
 
 

@@ -9,6 +9,12 @@
 ################################################################################
 ################################################################################
 
+#' Extract measures from seed object
+#'
+#' @param seed a seed object
+#' @param measures measure type to be extracted ("NPQ","XE","EF","OE")
+#' @param norm  how data should be normalised ("local","global","none")
+#' @return Seed object with extracted measures
 getMeasure <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local","global","none")){
     ## making a few checks
     if(any(!norm %in% c("local","global","none"))){

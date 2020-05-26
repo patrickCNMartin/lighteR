@@ -74,44 +74,6 @@
 }
 
 
-.modelThresholdSelection<-function(model,residualThreshold=5,time,modelType){
-
-      high<-model$High
-	    low<-model$Low
-
-      resiH<-c()
-	    resiL<-c()
-
-      if(modelType=="combinedFit"){
-            localResiH<-res(high)
-            localResiL<-res(low)
-            timeHigh<-length(localResiH)/time[1]
-            timeLow<-length(localResiL)/(time[2]-time[1])
-
-            for(i in seq_len(timeHigh)){
-                 resiH<-c(resiH,sum((res(high)[seq(i,length(localResiH),by=timeHigh)])^2))
-
-                 resiL<-c(resiL,sum((res(low)[seq(i,length(localResiL),by=timeLow)])^2))
-
-            }
-
-      } else{
-        for(i in seq_along(high)){
-
-	        resiH<-c(resiH,sum(res(high[[i]])^2))
-
-		      resiL<-c(resiL,sum(res(low[[i]])^2))
-
-        }
-      }
-
-
-	resH <- resiH <residualThreshold
-	resL <- resiL <residualThreshold
-  #if(sum(resH & resL)==0)browser()
-	return(resH | resL)
-}
-
 ################################################################################
 ################################################################################
 ################################################################################
@@ -155,7 +117,7 @@
         models <- mcmapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
     } else {
 
-        models <- .orderModels(models)
+
         seed <- split(seed, seq(nrow(seed)))
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
         models <- mapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold,origin=TRUE))
@@ -209,7 +171,7 @@
 
     ## Time extraction
     if(origin){
-        models <- .orderModels(models)
+        #models <- .orderModels(models)
         modelType <- all(sapply(models, length) == 3)
     } else {
         modelType <- all(sapply(models, length) == 3)
@@ -259,6 +221,7 @@
 
         seed <- split(seed, seq(nrow(seed)))
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
+
 
         models <- mapply(.MSESelect,models,seed,timeLoc,MoreArgs = list(threshold,origin=TRUE))
     }
@@ -321,7 +284,14 @@
 	return(MSEThresh < threshold)
 }
 
-## returns index of runs to drop or to retain
+#' Extract measures from seed object
+#'
+#' @param seed a seed object
+#' @param measure which measure should be used to select plants/samples ("NPQ","XE","EF","OE")
+#' @param method if models have been computed, descirbes which method should be used to assess goodness of fit ("MSE","RSS")
+#' @param threshold if models have been computed, threshold at which samples should be removed. Anything above threshold is removed.
+#' @param cores number of cores used for selecting plants
+#' @return Seed object with filtered data
 selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RSS"),threshold= c(0.05,0.5), cores= 1){
 
     ## first lets get time
@@ -336,7 +306,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
 
     ## next check what type of
     ## check we will be doing
-    models <- sum(unlist(slotApply(seed@models,length))) == 0
+    models <- sum(unlist(.slotApply(seed@models,length))) == 0
     if(models){
         template <- vector("list", length(slotNames(seed@measures)))
         names(template)<- slotNames(seed@measures)
@@ -346,14 +316,14 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
         ## Filtering over measures
         template <- !apply(do.call("cbind",template),1,sum) < length(measure)
 
-        retain <- slotSubset(seed@measures,1,template)
-        dropped <- slotSubset(seed@measures,1,!template)
+        retain <- .slotSubset(seed@measures,1,template)
+        dropped <- .slotSubset(seed@measures,1,!template)
 
-        seed@retain <- slotAssign(seed@retain,retain)
-        seed@dropped <- slotAssign(seed@dropped,dropped)
+        seed@retain <- .slotAssign(seed@retain,retain)
+        seed@dropped <- .slotAssign(seed@dropped,dropped)
         seed@meta.data$dropped <- c("retain"=sum(template),"dropped"=sum(!template))
         if(sum(sapply(dropped, nrow))>0 &
-           sum(unlist(slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
+           sum(unlist(.slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
             message("Re-generating sample Origin after filtering")
             seed <- getOrigin(seed,splitby = seed@meta.param@originType)
         }
@@ -383,8 +353,8 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                 warning(paste(measure[i],"models have not been computed - skipping measure"))
                 next()
             }
-            is.retain.empty <- sum(unlist(slotApply(seed@retain, length)))==0
-            is.origin.empty <- sum(unlist(slotApply(seed@origin, length)))==0
+            is.retain.empty <- sum(unlist(.slotApply(seed@retain, length)))==0
+            is.origin.empty <- sum(unlist(.slotApply(seed@origin, length)))==0
 
             if(is.retain.empty){
                 plant <- slot(seed@measures,measure[i])
@@ -395,7 +365,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
 
                 plant <- slot(seed@origin, measure[i])
             }
-            is.trait.empty <- sum(unlist(slotApply(seed@traits, length)))==0
+            is.trait.empty <- sum(unlist(.slotApply(seed@traits, length)))==0
             if(is.trait.empty){
                 trait <- NULL
             } else{
@@ -405,6 +375,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
             if(meth == "MSE"){
 
                 mods <- slot(models,measure[i])
+                is.origin.empty <- sum(unlist(.slotApply(seed@origin, length)))==0
                 if(is.origin.empty){
                     template[[i]] <- .MSESelection(mods,plant,trait,threshold,time,cores)
 
@@ -417,7 +388,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                 }
             } else if(meth == "RSS"){
                 mods <- slot(models,measure[i])
-                is.origin.empty <- sum(unlist(slotApply(seed@origin, length)))==0
+                is.origin.empty <- sum(unlist(.slotApply(seed@origin, length)))==0
                 if(is.origin.empty){
                     template[[i]] <- .RSSSelection(mods,plant,trait,threshold,time,cores)
                 } else {
@@ -429,68 +400,88 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                 stop("Unkown model selection method - Select from MSE or RSS")
             }
         }
+
         ### Subsetting
-
         ## Checking if origin is empty again
+        is.retain.empty <- sum(unlist(.slotApply(seed@retain, length)))==0
+        is.origin.empty <- sum(unlist(.slotApply(seed@origin, length)))==0
         if(!is.origin.empty){
-            models <- seed@models
-            modelType <- seed@meta.param@models
-            mods <- vector("list", length(measure))
-            for(i in seq_along(models)){
-                tmp <- modelType[[measure[i]]]
-                if(any(grepl("No", tmp, ignore.case=TRUE))){
-                    next()
-                }
-                tmpMod <- slot(models,measure[i])
-                mods[[i]] <- mapply(function(mods,temp){
-                                return(mods[temp])
-                },tmpMod,template[[i]])
-            }
-            models <- mods
-
-
-            templ <- lapply(template,function(x){
+            tempSub <- template
+           templ <- lapply(template,function(x){
                 if(!is.null(x)){
                     return(do.call("c",x))
                 } else {
                     return(NULL)
                 }})
+            tempTag <- lapply(template,function(x){
+                    if(!is.null(x)){
+                        t <- unlist(lapply(x,names))
+                        return(t)
+                    } else {
+                        return(NULL)
+                    }})
+            tempTag <- apply(do.call("cbind",tempTag),1,unique)
             template <- !apply(do.call("cbind",templ),1,sum) < sum(!grepl("No",modelType))
         } else {
+
             template <- !apply(do.call("cbind",template),1,sum) < sum(!grepl("No",modelType))
-            models <- slotListSub(seed@models,template)
-
         }
 
+        ## This is not great but if will have to do for now
+        template[which(is.na(template))] <- FALSE
         ## at leat for dropped and retained
-
-        if(is.retain.empty){
-            retain <- slotSubset(seed@measures,1,template)
-            dropped <- slotSubset(seed@measures,1,!template)
+        ### Subsetting
+        if(is.retain.empty & is.origin.empty){
+            retain <- .slotSubset(seed@measures,1,template)
+            dropped <- .slotSubset(seed@measures,1,!template)
+            seed@retain <- .slotAssign(seed@retain,retain)
+            seed@dropped <- .slotCombine(seed@dropped,dropped)
+        } else if(!is.retain.empty & is.origin.empty){
+            retain <- .slotSubset(seed@retain,1,template)
+            dropped <- .slotSubset(seed@retain,1,!template)
+            seed@retain <- .slotAssign(seed@retain,retain)
+            seed@dropped <- .slotCombine(seed@dropped,dropped)
+        } else if(is.retain.empty & !is.origin.empty){
+            retain <- .slotSubsetWithTag(seed@measures,template,tempTag)
+            dropped <- .slotSubsetWithTag(seed@measures,!template,tempTag)
+            seed@retain <- .slotAssign(seed@retain,retain)
+            seed@dropped <- .slotCombine(seed@dropped,dropped)
         } else {
-            retain <- slotSubset(seed@retain,1,template)
-            dropped <- slotSubset(seed@retain,1,!template)
+            retain <- .slotSubsetWithTag(seed@retain,template,tempTag)
+            dropped <- .slotSubsetWithTag(seed@retain,!template,tempTag)
+            seed@retain <- .slotAssign(seed@retain,retain)
+            seed@dropped <- .slotCombine(seed@dropped,dropped)
         }
-        if(!is.trait.empty){
-            traits <- slotSubset(seed@traits,1,template)
-            seed@traits <- slotAssign(seed@traits,traits)
+
+        if(!is.trait.empty & is.origin.empty){
+
+            traits <- .slotSubset(seed@traits,1,template)
+
+            seed@traits <- .slotAssign(seed@traits,traits)
+        } else if(!is.trait.empty & !is.origin.empty){
+
+            traits <- .slotSubsetWithTag(seed@traits,template,tempTag)
+
+            seed@traits <- .slotAssign(seed@traits,traits)
         }
-        ## filter models out
+
+        if(is.origin.empty){
+            models <- .slotListSub(seed@models,template)
+
+            seed@retained.models <- .slotAssign(seed@retained.models,models)
+        } else {
+            seed@retained.models <- .modelSub(seed@models,modelType,measure,tempSub)
+            seed@origin <-.generateOrigin(seed@origin,modelType,measure,tempSub)
+
+        }
 
 
-        seed@retain <- slotAssign(seed@retain,retain)
 
-        models[sapply(models,is.null)] <- list("No Models")
-        seed@models <- slotAssign(seed@models,models)
-        seed@dropped <- slotCombine(seed@dropped,dropped)
-        fullDrop <- unique(slotApply(seed@dropped,nrow))
+
+        fullDrop <- unique(.slotApply(seed@dropped,nrow))
         seed@meta.data$dropped <- c("retain"=sum(template),"dropped"=fullDrop)
 
-        if(sum(sapply(dropped, nrow))>0 &
-           sum(unlist(slotApply(seed@origin, function(origin){lapply(origin,length)})))>1){
-            message("Re-generating sample Origin after filtering")
-            seed <- getOrigin(seed,splitby = seed@meta.param@originType)
-        }
+
     }
 
     return(seed)
