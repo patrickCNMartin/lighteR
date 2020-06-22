@@ -42,12 +42,15 @@ setClass("meta.param",slot = c (time ="vector",
                           originType ="vector",
                           models = "list",
                           nlsrStart = "list",
-                          fitto = "vector"),
+                          fitto = "vector",
+                          normFactor = "list",
+                          normType = "character"),
                       prototype = prototype(nlsrStart = list(a=10, b=7.5, c=5),
                                             models = list("NPQ" = "No",
                                                           "XE" = "No",
                                                           "OE" = "No",
-                                                          "EF" = "No")))
+                                                          "EF" = "No"),
+                                            normType = "local"))
 
 
 

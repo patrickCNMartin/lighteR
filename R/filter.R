@@ -42,9 +42,10 @@
        for(bound in seq_along(boundaries[[rows]])){
 
            if(dataType[1] != "XE"){
-               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][1] < boundaries[[rows]][[bound]][2])
+
+               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][[1]] < boundaries[[rows]][[bound]][[2]])
            } else{
-               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][1] > boundaries[[rows]][[bound]][2])
+               tmpPass <- c(tmpPass,boundaries[[rows]][[bound]][[1]] > boundaries[[rows]][[bound]][[2]])
            }
 
        }

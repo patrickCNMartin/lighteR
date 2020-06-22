@@ -39,19 +39,45 @@ getMeasure <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local"
     ## extract measure type from each file
     lightRes <- vector("list", length(measures))
     names(lightRes) <- measures
+    normFactors <-vector("list", length(measures))
+    names(normFactors) <- measures
     for(m in seq_along(lightRes)){
         tmp <- lapply(light,"[[",measures[m])
         tmp <- do.call("rbind", tmp)
+        tag <- paste0(tmp$diskID,tmp$Zone);
+        tag <- gsub(" ","", tag)
+        tag <- gsub("missing","", tag)
         if(norm == "local"){
+            tmpMin <- as.vector(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){
+                return(min(x))}))
+            names(tmpMin) <- tag
 
-            tmpLoc <- t(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){return(x/max(x))}))
-            tmp <- cbind(tmp[,colnames(tmp) %in% c("diskID","Zone")],tmpLoc)
+            tmpMax <- as.vector(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){
+                return(max(x))}))
+            names(tmpMax) <- tag
+
+            nf <- list("min"=tmpMin,"max" = tmpMax)
+
+            for(i in seq_len(nrow(tmp))){
+                row <- tmp[i,!colnames(tmp) %in% c("diskID","Zone")]
+                tmp[i,!colnames(tmp) %in% c("diskID","Zone")] <- (row - tmpMin[i]) / (tmpMax[i]- tmpMin[i])
+            }
+
+
+
+            ##
             lightRes[[m]] <- tmp
+            normFactors[[m]] <- nf
         } else if(norm =="global"){
             localMax <- max(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){return(max(x))}))
-            tmpLoc <- t(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x,l){return(x/l)},localMax))
-            light <- cbind(tmp[,colnames(tmp) %in% c("diskID","Zone")],tmpLoc)
+            localMin <- max(apply(tmp[,!colnames(tmp) %in% c("diskID","Zone")],1,function(x){return(max(x))}))
+            nf <- list("min"=localMin,"max" = localMax)
+            for(i in seq_len(nrow(tmp))){
+                row <- tmp[i,!colnames(tmp) %in% c("diskID","Zone")]
+                tmp[i,!colnames(tmp) %in% c("diskID","Zone")] <- (row - localMin) / (localMax- localMin)
+            }
             lightRes[[m]] <- tmp
+            normFactors[[m]] <- nf
         } else {
             lightRes[[m]] <- tmp
         }
@@ -81,6 +107,8 @@ getMeasure <- function(seed, measures = c("NPQ","XE","EF","OE"),norm = c("local"
                      OE = OE)
 
     seed@measures <- lightResp
+    seed@meta.param@normFactor <- normFactors
+    seed@meta.param@normType <- norm[1]
     return(seed)
 }
 

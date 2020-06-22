@@ -368,6 +368,7 @@ modelPlants <- function(seed, models = list("NPQ" = c("beta",3)), fit.to=c("plan
     ## values must be strictly between 0 and 1 non included
 
     dat[dat$value==1,"value"] <-0.999999999
+    dat[dat$value==0,"value"] <-0.000000001
     return(betareg(value ~ time, data=dat))
 }
 

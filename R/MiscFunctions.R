@@ -426,7 +426,7 @@ setStartPoints <- function(seed,start){
     ## matching
 
     mat <- match(zone,tag)
-    if(any(is.na(mat)))browser()
+    #if(any(is.na(mat)))browser()
 
     dip <- dip[mat[!is.na(mat)],"OverCompTime"]
     return(dip)
@@ -520,8 +520,196 @@ setStartPoints <- function(seed,start){
 }
 
 
+###
 
-.convertTime<-function(data,imageData){
+convertValues <- function(seed, measures = c("NPQ","XE","EF","OE")){
+    ## fist lates check if there is a norm
+    normFact <- seed@meta.param@normFactor
+    normType <- seed@meta.param@normType
+    if(normType == "None"){
+        warning("Data was not normalised - No values to convert")
+        return(seed)
+    }
+
+    ## check if slot are empty
+
+    is.retain.empty <- sum(unlist(.slotApply(seed@retain, length))) == 0
+    is.traits.empty <- sum(unlist(.slotApply(seed@traits, length))) == 0
+    is.dropped.empty <- sum(unlist(.slotApply(seed@dropped, length))) == 0
+    is.measure.empty <- sum(unlist(.slotApply(seed@measures, length))) == 0
+
+    empty <- list("retain"=is.retain.empty,
+                  "traits"=is.traits.empty,
+                  "dropped"=is.dropped.empty,
+                  "measures"=is.measure.empty)
+
+    for(i in seq_along(empty)){
+        print(names(empty)[i])
+        if(empty[[i]]){
+            next()
+        }else {
+            if(normType == "local"){
+                tmp <- slot(seed,names(empty)[i])
+                for(j in seq_along(measures)){
+                    print(measures[j])
+                    tmpInt <- slot(tmp,measures[j])
+                    if(any(colnames(tmpInt) %in% c("plot","pedigree","line","stem"))){
+                        tag <- apply(tmpInt[,c("plot","pedigree","line","stem")],1,paste, collapse="")
+                    }else {
+                        tag <- apply(tmpInt[,c("diskID","Zone")],1,paste, collapse="")
+                    }
+                    ## Dirty stuff
+                    tag <- gsub(" ","", tag)
+                    tag <- gsub("missing","", tag)
+                    names(tag) <- NULL
+                    ##
+
+                    normTag <- names(normFact[[measures[j]]]$min)
+                    normTag <-gsub(" ","", normTag)
+                    normTag <- gsub("missing","", normTag)
+                    names(normTag) <- NULL
+                    ## matching
+
+                    mat <- match(tag,normTag)
+                    minV <- normFact[[measures[[j]]]]$min[!is.na(mat)]
+                    maxV <- normFact[[measures[[j]]]]$max[!is.na(mat)]
+                    ## converting values
+                    for(k in seq_len(nrow(tmpInt))){
+
+                        if(any(colnames(tmpInt)=="OverCompTime")) {
+                            idx <- .simpleTraits(tmpInt)
+                            buffer <- as.vector(as.matrix(tmpInt[k,idx]))
+                            tmpInt[k,idx] <- buffer*(maxV[k]-minV[k]) + minV[k]
+                        }else if(any(colnames(tmpInt) %in% c("plot","pedigree","line","stem"))){
+                            buffer <- as.vector(as.matrix(tmpInt[k,!colnames(tmpInt) %in% c("plot","pedigree","line","stem")]))
+                            tmpInt[k,!colnames(tmpInt) %in% c("plot","pedigree","line","stem")] <- buffer*(maxV[k]-minV[k]) + minV[k]
+                        }else if(any(colnames(tmpInt) %in% c("diskID","Zone"))) {
+                            buffer <-as.vector(as.matrix(tmpInt[k,!colnames(tmpInt) %in% c("diskID","Zone")]))
+
+                            tmpInt[k,!colnames(tmpInt) %in% c("diskID","Zone")]<- buffer*(maxV[k]-minV[k]) + minV[k]
+                        }
+                    }
+                    slot(tmp,measures[j]) <- tmpInt
+                }
+            slot(seed,names(empty)[i]) <- tmp
+            } else {
+                tmp <- slot(seed,names(empty)[i])
+                for(j in seq_along(measures)){
+                    tmpInt <- slot(tmp,measures[j])
+
+                    ## matching
+
+                   minV <- normFact[[measures[[j]]]]$min
+                   maxV <- normFact[[measures[[j]]]]$max
+
+                    ## converting values
+                    for(k in seq_len(nrow(tmpInt))){
+                        if(any(colnames(tmpInt)=="OverCompTime")) {
+                            idx <- .simpleTraits(tmpInt)
+                            buffer <- as.vector(as.matrix(tmpInt[k,idx]))
+                            tmpInt[k,idx] <- buffer*(maxV-minV) + minV
+                        }else if(any(colnames(tmpInt) %in% c("plot","pedigree","line","stem"))){
+                            buffer <- as.vector(as.matrix(tmpInt[k,!colnames(tmpInt) %in% c("plot","pedigree","line","stem")]))
+                            tmpInt[k,!colnames(tmpInt) %in% c("plot","pedigree","line","stem")] <- buffer*(maxV-minV) + minV
+                        }else if(any(colnames(tmpInt) %in% c("diskID","Zone"))){
+                            buffer <- as.vector(as.matrix(tmpInt[k,!colnames(tmpInt) %in% c("diskID","Zone")]))
+                            tmpInt[k,!colnames(tmpInt) %in% c("diskID","Zone")]<- buffer*(maxV-minV) + minV
+                        }
+                    }
+                    slot(tmp,measures[j]) <- tmpInt
+                }
+                slot(seed,names(empty)[i]) <- tmp
+            }
+
+        }
+    }
+    return(seed)
+}
+
+
+
+.simpleTraits <- function(df){
+
+
+    idx <- which(colnames(df) %in% c("startHighLight",
+                                     "endHighLight",
+                                     "minHighLight",
+                                     "maxHighLight",
+                                     "startLowLight",
+                                     "endLowLight",
+                                     "minLowLight")
+                 )
+
+    return(idx)
+}
+
+.simpleTime <- function(df){
+    idx <- which(colnames(df) %in% c("InductionTime",
+                                     "OverCompTime",
+                                     "RelaxationTime",
+                                     "startPlateau",
+                                     "endPlateau",
+                                     "stableLowLightTime")
+    )
+
+    return(idx)
+}
+
+
+convertTime <- function(seed,measures = c("NPQ","XE","EF","OE")){
+    is.image.empty <- sum(unlist(sapply(seed@roots@Image, length)))==0
+    if(is.image.empty){
+        stop("No Image data loaded - Image data contains Time point values")
+    } else {
+        traits <- seed@traits
+        imageData<- seed@roots@Image
+        time<-lapply(imageData,function(x){
+            x<-x[[grep("OE",names(x))]]
+            time<-as.numeric(x$Time)
+            time<-time-min(time)
+            #light<-as.numeric(x$PPFD)
+
+            return(time)
+        })
+
+        names(time)<-gsub("ImageData","ZoneData",names(time))
+        if(length(seed@meta.param@timePoints)>0){
+            localTime <- seed@meta.param@timePoints
+        } else {
+            message("No Time Points have been set - using default 40 - 80")
+            localTime <- c(40,80)
+        }
+        for(i in seq_along(measures)){
+            tmp <- slot(traits, measures[i])
+            for(j in seq_along(time)){
+                idx <- .simpleTime(tmp)
+
+                tmp[grep(names(time)[j],tmp[,"diskID"]),idx] <- .convertTime(
+                                                                    tmp[grep(names(time)[j],tmp[,"diskID"]),idx],localTime,time[[j]])
+            }
+            slot(traits, measures[i]) <- tmp
+
+        }
+        slot(seed, "traits") <- traits
+    }
+    return(seed)
+}
+
+.convertTime<- function(df,local,time){
+
+    df$InductionTime <- time[df$InductionTime]
+    df$OverCompTime <- (time[local[1]+df$OverCompTime]) - time[local[1]]
+    df$RelaxationTime <- (time[local[1]+df$RelaxationTime]) - time[local[1]]
+
+    df$stableLowLightTime <- time[local[1] + df$endPlateau] - time[local[1] +df$startPlateau]
+    df$startPlateau <- time[local[1] +df$startPlateau]
+    df$endPlateau <- time[local[1] +df$endPlateau]
+
+
+    return(df)
+}
+
+.convertTimeOld<-function(data,imageData){
     if(length(grep("Image",names(imageData)))==0){
         stop("No Image data loaded - batchLoading type should be set to all or image")
     }else{
