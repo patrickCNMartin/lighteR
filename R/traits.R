@@ -296,10 +296,12 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
 
         if(nas[mod]){
             modelLocal <- c(modelLocal,rep(NA,length(ti)))
-            coefs <-c(coefs,rep(NA,3))
+            resi <- NA
+            coefs <-c(coefs,resi,rep(NA,3))
         } else {
             modelLocal <- c(modelLocal,.extractFittedModel(model[[mod]],ti,names(model)[mod]))
-            coefs <- c(coefs,coef(model[[mod]]))
+            resi <- sqrt(sum(model[[mod]]$residuals^2)/(length(model[[mod]]$residuals)-2))
+            coefs <- c(coefs,coef(model[[mod]]),resi)
         }
         tag <- c(tag, paste0(rep(names(model)[mod],length(ti)),mod))
     }
@@ -308,7 +310,10 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
     } else if(length(tag)> length(modelLocal)){
         modelLocal <- c(modelLocal, rep(NA,length(tag)-length(modelLocal)))
     }
+
     names(modelLocal) <- tag
+
+    names(coefs)[names(coefs) %in% ""] <- "RSE"
     mods <- c(as.character(tags),coefs,"fitted_data",modelLocal)
 
     return(mods)
