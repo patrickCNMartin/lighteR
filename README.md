@@ -67,27 +67,31 @@ seed <- getMeasure(seed)
 seed <- getOrigin(seed, splitby = c("pedigree","line"))
 seed <- selectPlants(seed)
 seed <- getTraits(seed)
-seedMod <- modelPlants(seed, models = list("NPQ"=c("beta",3,1),"EF"=c(2,3)),
+seedMod <- modelPlants(seed, models = list("NPQ"=c("beta",3,1),"OE"=c(2,3)),
                     fit.to = "allPlants",cores=10)
-seedSel <- selectPlants(seedMod,measure = c("NPQ","EF"), method ="MSE",threshold = 0.004)
+seedSel <- selectPlants(seedMod,measure = c("NPQ","OE"), method ="MSE",threshold = 0.018)
 seed <- getTraits(seedSel)
 
-exportSeed(seed, file="../MyFile",extension = ".csv")
+seedExp <- convertValues(seed)
+seedExp <- convertTime(seedExp)
 
-pdf("myPlots_NPQ_NPQTriple_beta_3_1.pdf",width=12, height =12)
+exportSeed(seedExp, file="../../NIAB",extension = ".csv")
+
+pdf("../../NIAB_NPQ_NPQTriple_beta_3_1.pdf",width=12, height =12)
 par(mfrow = c(3,3))
 plotSeed(seed, measure = c("NPQ"))
 dev.off()
 
-pdf("myPlots_EF_2_3.pdf",width=12, height =12)
+pdf("../../NIAB_OE_2_3.pdf",width=12, height =12)
 par(mfrow = c(3,3))
-plotSeed(seed, measure = c("EF"))
+plotSeed(seed, measure = c("OE"))
 dev.off()
 
-pdf("dropped.pdf",width=12, height =12)
+pdf("../../NIAB_dropped.pdf",width=12, height =12)
 par(mfrow = c(3,3))
-plotSeed(seed, measure = c("NPQ","EF"), dropped=TRUE)
+plotSeed(seed, measure = c("NPQ","OE"), dropped=TRUE)
 dev.off()
+
 
 
 ``
