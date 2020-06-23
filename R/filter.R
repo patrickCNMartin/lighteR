@@ -119,29 +119,30 @@
 
 
     if(!origin){
-        seed <- split(seed, seq(nrow(seed)))
+
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
-        models <- mcmapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
+        idx <- seq_along(timeLoc)
+        models <- mcmapply(.RSSSelect,models,idx,timeLoc,MoreArgs = list(threshold), mc.cores=cores)
     } else {
 
 
-        seed <- split(seed, seq(nrow(seed)))
         timeLoc<- split(timeLoc, seq(nrow(timeLoc)))
-        models <- mapply(.RSSSelect,models,seed,timeLoc,MoreArgs = list(threshold,origin=TRUE))
+        idx <- seq_along(timeLoc)
+        models <- mapply(.RSSSelect,models,idx,timeLoc,MoreArgs = list(threshold,origin=TRUE))
     }
 
 
     return(models)
 }
 
-.RSSSelect <- function(model,data,time,threshold=5, origin=FALSE){
+.RSSSelect <- function(model,idx,time,threshold=5, origin=FALSE){
     modelLocal <- c()
-    if(!origin){
-        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
+   # if(!origin){
+    #    dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","Zone")]))
 
-    }else {
-        dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","plot","pedigree","line","stem")]))
-    }
+    #}else {
+     #   dataLocal <- as.vector(as.matrix(data[,!colnames(data) %in% c("diskID","plot","pedigree","line","stem")]))
+    #}
 
     timeLoc <- vector("list", length(model))
     count <- 1
@@ -157,15 +158,22 @@
 
     timeLoc <- lapply(timeLoc[!is.na(model)], unlist)
     for(mod in seq_along(model)){
+        ti <- seq(1,(timeLoc[[mod]][[2]]-timeLoc[[mod]][[1]])+1)
+        resi <- model[[mod]]$residuals
 
+        div<- length(resi)/length(ti)
 
-        modelLocal <- c(modelLocal,as.vector(res(model[[mod]]))^2)
+        resi <- resi[seq(idx,length(resi)-(div+idx), by=div)]
+        modelLocal <- c(modelLocal,resi)
     }
 
 
-    RSSThresh <- sum(modelLocal)
 
-    return(RSSThresh < threshold)
+
+    resi <- sqrt(sum(resi^2)/(length(resi)-2))
+
+
+    return(resi < threshold)
 }
 
 
@@ -300,7 +308,7 @@
 #' @param threshold if models have been computed, threshold at which samples should be removed. Anything above threshold is removed.
 #' @param cores number of cores used for selecting plants
 #' @return Seed object with filtered data
-selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RSS"),threshold= c(0.05,0.5), cores= 1){
+selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RSD"),threshold= c(0.05,0.05), cores= 1){
 
     ## first lets get time
     ## need to add a check here
@@ -346,7 +354,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
         if(meth == "MSE" & length(threshold)==2){
             message("No MSE threshold has been specificied - using default 0.05")
             threshold <- threshold[1]
-        } else if(meth == "RSS" &length(threshold)==2){
+        } else if(meth == "RSD" &length(threshold)==2){
             message("No RSS threshold has been specified - using default 0.5")
             threshold <- threshold[2]
         }
@@ -394,7 +402,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                                               MoreArgs = list(trait,threshold,time,fit.to,origin=TRUE),mc.cores =cores)
 
                 }
-            } else if(meth == "RSS"){
+            } else if(meth == "RSD"){
                 mods <- slot(models,measure[i])
                 is.origin.empty <- sum(unlist(.slotApply(seed@origin, length)))==0
                 if(is.origin.empty){
@@ -405,7 +413,7 @@ selectPlants <- function(seed,measure=c("NPQ","XE","EF","OE"),method=c("MSE","RS
                                               MoreArgs = list(trait,threshold,time,fit.to,origin =TRUE),mc.cores=cores)
                 }
             } else {
-                stop("Unkown model selection method - Select from MSE or RSS")
+                stop("Unkown model selection method - Select from MSE or RSD")
             }
         }
         ### checking min length for template creation

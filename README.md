@@ -69,7 +69,7 @@ seed <- selectPlants(seed)
 seed <- getTraits(seed)
 seedMod <- modelPlants(seed, models = list("NPQ"=c("beta",3,1),"OE"=c(2,3)),
                     fit.to = "allPlants",cores=10)
-seedSel <- selectPlants(seedMod,measure = c("NPQ","OE"), method ="MSE",threshold = 0.018)
+seedSel <- selectPlants(seedMod,measure = c("NPQ","OE"), method ="RSD",threshold = 0.08)
 seed <- getTraits(seedSel)
 
 seedExp <- convertValues(seed)
@@ -91,6 +91,7 @@ pdf("../../NIAB_dropped.pdf",width=12, height =12)
 par(mfrow = c(3,3))
 plotSeed(seed, measure = c("NPQ","OE"), dropped=TRUE)
 dev.off()
+
 
 
 

@@ -248,8 +248,8 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
 
         tag <- lapply(tag,function(x){
             as.character(as.vector(as.matrix(x)))})
-
-        models <- mcmapply(.SelectFitted,models,timeLoc,tag,SIMPLIFY = FALSE ,mc.cores=cores)
+        idx <- seq_along(timeLoc)
+        models <- mcmapply(.SelectFitted,models,idx,timeLoc,tag,SIMPLIFY = FALSE ,mc.cores=cores)
         models <- lapply(models, unlist)
 
 
@@ -260,8 +260,8 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
         tag <- split(tag, seq(nrow(tag)))
         tag <- lapply(tag,function(x){
             as.character(as.vector(as.matrix(x)))})
-
-        models <- mapply(.SelectFitted,models,timeLoc,tag,MoreArgs = list(origin=TRUE),SIMPLIFY= FALSE)
+        idx <- seq_along(timeLoc)
+        models <- mapply(.SelectFitted,models,idx,timeLoc,tag,MoreArgs = list(origin=TRUE),SIMPLIFY= FALSE)
 
     }
 
@@ -270,7 +270,7 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
 }
 
 
-.SelectFitted <- function(model,time,tags,origin=FALSE){
+.SelectFitted <- function(model,idx,time,tags,origin=FALSE){
 
     ### Using filtering function as template
     ## they work in similar ways
@@ -300,7 +300,13 @@ getTraits <- function(seed,measure = c("NPQ","XE","EF","OE"),cores=1){
             coefs <-c(coefs,resi,rep(NA,3))
         } else {
             modelLocal <- c(modelLocal,.extractFittedModel(model[[mod]],ti,names(model)[mod]))
-            resi <- sqrt(sum(model[[mod]]$residuals^2)/(length(model[[mod]]$residuals)-2))
+
+            resi <- model[[mod]]$residuals
+            div<- length(resi)/length(ti)
+
+            resi <- resi[seq(idx,length(resi)-(div+idx), by=div)]
+
+            resi <- sqrt(sum(resi^2)/(length(resi)-2))
             coefs <- c(coefs,coef(model[[mod]]),resi)
         }
         tag <- c(tag, paste0(rep(names(model)[mod],length(ti)),mod))
